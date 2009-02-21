@@ -6,6 +6,8 @@ require 'nokogiri'
 require 'ruby-picasa/xml'
 require 'ruby-picasa/types'
 
+require 'open-uri'
+
 module RubyPicasa
   class Picasa
 
@@ -41,6 +43,10 @@ module RubyPicasa
     def album(id_or_url)
       xml = request_album_feed
       Album.new(xml)
+    end
+
+    def search(q, start_index = 1, max_results = 10)
+      Search.new(q, start_index, max_results)
     end
   end
 end

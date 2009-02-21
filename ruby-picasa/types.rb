@@ -76,6 +76,20 @@ module RubyPicasa
     end
   end
 
+  class Search < Album
+    def initialize(q, start_index = 1, max_results = 10)
+      @q = q
+      @start_index = start_index
+      @max_results = max_results
+      xml = open("http://picasaweb.google.com/data/feed/api/all?q=#{ CGI.escape(q.to_s) }&start-index=#{ CGI.escape(start_index.to_s) }&max-results=#{ CGI.escape(max_results.to_s) }").read
+      super(xml)
+    end
+
+    def next_results
+      Search.new(@q, @start_index + @max_results, @max_results)
+    end
+  end
+
   class Link < AttributeParser
     attr_accessor :rel, :type, :href
   end
