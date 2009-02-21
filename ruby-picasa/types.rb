@@ -13,67 +13,73 @@
 # Define which namespaces you support in the class method #namespaces. Any
 # elements defined in other namespaces are automatically ignored.
 module RubyPicasa
+  class Link < AttributeParser
+    attr_accessor :rel, :type, :href
+  end
+
+  class PhotoUrl < AttributeParser
+    attr_accessor :url, :height, :width
+  end
+
   class User < XmlParser
-    attr_accessor :id,
+    attributes :id,
       :updated,
       :title,
-      :links,
       :total_results, # represents total number of albums
       :start_index,
       :items_per_page,
-      :thumbnail,
-      :entries
-
-    def self.namespaces
-      %w[openSearch gphoto]
-    end
-
-    # Always use fully qualified element name.
-    #
-    # If it returns :self, just carry on into the definition without assigning
-    # that property to anything and keep on using the same object. This is used
-    # for media:group where the xml nests but keeps on defining the same object
-    # and does note repeat. XML is retarded.
-    def self.types
-      { 'link' => Link,
-        'entry' => Album,
-        'media:content' => PhotoUrl,
-        'media:thumbnail' => PhotoUrl }
-    end
+      :thumbnail
+    has_many :links, Link, 'link'
+    has_many :entries, Album, 'entry'
+    has_one :content, PhotoUrl, 'media:content'
+    has_many :thumbnails, PhotoUrl, 'media:thumbnail'
+    namespaces %w[openSearch gphoto]
+    flatten 'media:group'
   end
 
 
   class Album < XmlParser
-    attr_accessor :id,
+    attributes :id,
       :published,
       :updated,
       :title,
       :summary,
       :rights,
-      :links,
       :gphoto_id,
       :name,
       :access,
       :numphotos, # number of pictures in this album
-      :content,
-      :thumbnails,
       :total_results, # number of pictures matching this 'search'
       :start_index,
       :items_per_page,
-      :allow_downloads,
-      :entries
+      :allow_downloads
+    has_many :links, Link, 'link'
+    has_many :entries, Photo, 'entry'
+    has_one :content, PhotoUrl, 'media:content'
+    has_many :thumbnails, PhotoUrl, 'media:thumbnail'
+    flatten 'media:group'
+    namespaces %w[openSearch gphoto media]
+  end
 
-    def self.namespaces
-      %w[openSearch gphoto media]
-    end
-
-    def self.types
-      { 'link' => Link,
-        'entry' => Photo,
-        'media:content' => PhotoUrl,
-        'media:thumbnail' => PhotoUrl,
-        'media:group' => :self }
-    end
+  class Photo < XmlParser
+    attributes :id,
+      :published,
+      :updated,
+      :title,
+      :summary,
+      :gphoto_id,
+      :version, # can use to determine if need to update...
+      :position,
+      :albumid, # useful from the recently updated feed for instance.
+      :width,
+      :height,
+      :description,
+      :keywords
+    has_many :links, Link, 'link'
+    has_one :content, PhotoUrl, 'media:content'
+    has_many :thumbnails, PhotoUrl, 'media:thumbnail'
+    namespaces %w[gphoto media]
+    flatten 'media:group'
   end
 
   class Search < Album
@@ -88,43 +94,6 @@ module RubyPicasa
     def next_results
       Search.new(@q, @start_index + @max_results, @max_results)
     end
-  end
-
-  class Link < AttributeParser
-    attr_accessor :rel, :type, :href
-  end
-
-  class Photo < XmlParser
-    attr_accessor :id,
-      :published,
-      :updated,
-      :title,
-      :summary,
-      :links,
-      :gphoto_id,
-      :version, # can use to determine if need to update...
-      :position,
-      :albumid, # useful from the recently updated feed for instance.
-      :width,
-      :height,
-      :description,
-      :keywords,
-      :content,
-      :thumbnails
-
-    def self.namespaces
-      %w[gphoto media]
-    end
-    def self.types
-      { 'link' => Link,
-        'media:content' => PhotoUrl,
-        'media:thumbnail' => PhotoUrl,
-        'media:group' => :self }
-    end
-  end
-
-  class PhotoUrl < AttributeParser
-    attr_accessor :url, :height, :width
   end
 end
 

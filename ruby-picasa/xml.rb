@@ -1,6 +1,92 @@
 module RubyPicasa
   class Xml
+    module Dsl
+      # If you 
+      def has_one(name, type, qualified_name)
+        set_type(qualified_name, type)
+      end
+
+      def has_many(name, type, qualified_name)
+        @collections ||= []
+        @collections << name
+        set_type(qualified_name, type)
+        attribute name
+      end
+
+      def attributes(*names)
+        names.each { |n| attribute n }
+        @attributes
+      end
+
+      def attribute(name)
+        @attributes ||= []
+        @attributes << name
+        module_eval %{
+          def #{name}=(value)
+            @attributes['#{name}'] = value
+          end
+          def #{name}
+            @attributes['#{name}']
+          end
+        }
+      end
+
+      def find_attribute(namespace, name)
+        names = []
+        plural = collection?(namespace, name)
+        if plural
+          if namespace
+            names << "#{ namespace }_#{ name.pluralize }"
+          end
+          names << name.pluralize
+        end
+        if namespace
+          names << "#{ namespace }_#{ name }"
+        end
+        names << name
+        names.map { |n| n.underscore }.find do |n|
+          @attributes.include? n.underscore
+        end
+      end
+
+      def flatten(qualified_name)
+        @flatten ||= []
+        @flatten << qualified_name
+      end
+
+      def flatten?(qualified_name)
+        @flatten.include? qualified_name
+      end
+
+      def namespace?(namespace)
+        @namespaces ||= []
+        @namespaces.include? namespace
+      end
+
+      def namespaces(*namespaces)
+        @namespaces ||= []
+        @namespaces += namespaces
+      end
+
+      def attribute_type(qualified_name)
+        @types ||= {}
+        @types[qualified_name]
+      end
+
+      def set_type(qualified_name, type)
+        @types ||= {}
+        @types[qualified_name] = type
+      end
+
+      def collection?(name)
+        @collections.include?(name)
+      end
+    end
+
+    extend Dsl
+
     def initialize(xml)
+      @attributes = {}
       return if xml.nil?
       if xml.is_a? String
         xml = Nokogiri::XML(xml) 
@@ -41,6 +127,40 @@ module RubyPicasa
   end
 
   class XmlParser < Xml
+    def qualified_name(x)
+      qn = x.name
+      qn = "#{ x.namespace }:#{ x.name }" if x.namespace
+      qn
+    end
+
+    def attribute_type(x)
+      self.class.attribute_type qualified_name(x)
+    end
+
+    def flatten?(x)
+      self.class.flatten?(qualified_name(x))
+    end
+
+    def collection?(x)
+      self.class.collection?(qualified_name(x))
+    end
+
+    def namespace?(x)
+      if x.namespace
+        self.class.namespace?(x.namespace)
+      else
+        true
+      end
+    end
+
+    def attribute(x)
+      self.class.find_attribute(x.namespace, x.name)
+    end
+
+    def attributes
+      self.class.attributes
+    end
+
     def primary_xml_element(xml)
       parse_xml(xml.child)
     end
@@ -52,52 +172,29 @@ module RubyPicasa
       end
     end
 
-    def method_name(x)
-      names = []
-      if x.namespace
-        names << ["#{ x.namespace }_#{ x.name }", false]
-        names << ["#{ x.namespace }_#{ x.name.pluralize }", true]
-      end
-      names << [x.name, false]
-      names << [x.name.pluralize, true]
-      name, plural = names.find do |n, _|
-        respond_to?("#{ n.underscore }=")
-      end
-      if name
-        [name.underscore, "#{ name.underscore }=", plural]
-      end
-    end
-
     def read_xml_element(x)
       return if x.is_a? Nokogiri::XML::Text
-      return unless self.class.namespaces.include?(x.namespace) if x.namespace
-      value = nil
-      full_name = x.name
-      full_name = "#{ x.namespace }:#{ x.name }" if x.namespace
-      if type = self.class.types[full_name]
-        if type == :self
-          parse_xml(x.child)
-          return
-        else
-          set_xml_property(x) { type.new(x) }
-        end
+      return unless namespace?(x)
+      if flatten?(x)
+        parse_xml(x.child)
+      elsif type = attribute_type(x)
+        set_attribute(x) { type.new(x) }
       else
-        set_xml_property(x) { xml_text_to_value(x.text) }
+        set_attribute(x) { xml_text_to_value(x.text) }
       end
     end
 
-    def set_xml_property(x)
-      getter, setter, plural = method_name(x)
-      if getter
+    def set_attribute(x)
+      if attr_name = attribute(x.namespace, x.name)
         value = nil
-        if plural
-          value = send(getter)
+        if collection?(x.namespace, x.name)
+          value = send(attr_name)
           value ||= []
           value << yield
         else
           value = yield
         end
-        send(setter, value)
+        send("#{attr_name}=", value)
       end
     end
   end
