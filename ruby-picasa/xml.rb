@@ -1,16 +1,35 @@
 module RubyPicasa
   class Xml
     module Dsl
-      # If you 
+      def self.extended(target)
+        target.init
+      end
+
+      def init
+        parent = ancestors[1]
+        if parent
+          @collections = parent.instance_variable_get('@collections') || []
+          @attributes = parent.instance_variable_get('@attributes') || []
+          @flatten = parent.instance_variable_get('@flatten') || []
+          @namespaces = parent.instance_variable_get('@namespaces') || []
+          @types = parent.instance_variable_get('@types') || {}
+        else
+          @collections = []
+          @attributes = []
+          @flatten = []
+          @namespaces = []
+          @types = {}
+        end
+      end
+
       def has_one(name, type, qualified_name)
         set_type(qualified_name, type)
       end
 
       def has_many(name, type, qualified_name)
-        @collections ||= []
-        @collections << name
+        @collections << qualified_name.to_s
         set_type(qualified_name, type)
-        attribute name
+        attribute name, true
       end
 
       def attributes(*names)
@@ -18,22 +37,23 @@ module RubyPicasa
         @attributes
       end
 
-      def attribute(name)
-        @attributes ||= []
+      def attribute(name, collection = false)
+        name = name.to_s.underscore
         @attributes << name
         module_eval %{
           def #{name}=(value)
             @attributes['#{name}'] = value
           end
           def #{name}
-            @attributes['#{name}']
+            @attributes['#{name}']#{ collection ? ' ||= []' : '' }
           end
         }
+        name
       end
 
-      def find_attribute(namespace, name)
+      def find_attribute(qualified_name, namespace, name)
         names = []
-        plural = collection?(namespace, name)
+        plural = collection?(qualified_name)
         if plural
           if namespace
             names << "#{ namespace }_#{ name.pluralize }"
@@ -50,7 +70,6 @@ module RubyPicasa
       end
 
       def flatten(qualified_name)
-        @flatten ||= []
         @flatten << qualified_name
       end
 
@@ -59,31 +78,39 @@ module RubyPicasa
       end
 
       def namespace?(namespace)
-        @namespaces ||= []
         @namespaces.include? namespace
       end
 
       def namespaces(*namespaces)
-        @namespaces ||= []
         @namespaces += namespaces
       end
 
       def attribute_type(qualified_name)
-        @types ||= {}
-        @types[qualified_name]
+        type = @types[qualified_name]
+        if type and not type.is_a? Class
+          type = "RubyPicasa::#{ type }".constantize rescue nil
+          type ||= type.to_s.constantize
+          @types[qualified_name] = type
+        end
+        type
       end
 
       def set_type(qualified_name, type)
-        @types ||= {}
         @types[qualified_name] = type
       end
 
-      def collection?(name)
-        @collections.include?(name)
+      def collection?(qualified_name)
+        @collections.include?(qualified_name)
+      end
+
+      def data
+        [@attributes, @collections, @flatten, @namespaces, @types]
       end
     end
 
-    extend Dsl
+    def self.inherited(target)
+      target.extend Dsl
+    end
 
     def initialize(xml)
       @attributes = {}
@@ -154,7 +181,7 @@ module RubyPicasa
     end
 
     def attribute(x)
-      self.class.find_attribute(x.namespace, x.name)
+      self.class.find_attribute(qualified_name(x), x.namespace, x.name)
     end
 
     def attributes
@@ -185,16 +212,12 @@ module RubyPicasa
     end
 
     def set_attribute(x)
-      if attr_name = attribute(x.namespace, x.name)
-        value = nil
-        if collection?(x.namespace, x.name)
-          value = send(attr_name)
-          value ||= []
-          value << yield
+      if attr_name = attribute(x)
+        if collection?(x)
+          send(attr_name) << yield
         else
-          value = yield
+          send("#{attr_name}=", yield)
         end
-        send("#{attr_name}=", value)
       end
     end
   end

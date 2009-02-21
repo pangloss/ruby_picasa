@@ -30,7 +30,7 @@ module RubyPicasa
       :items_per_page,
       :thumbnail
     has_many :links, Link, 'link'
-    has_many :entries, Album, 'entry'
+    has_many :entries, :Album, 'entry'
     has_one :content, PhotoUrl, 'media:content'
     has_many :thumbnails, PhotoUrl, 'media:thumbnail'
     namespaces %w[openSearch gphoto]
@@ -54,7 +54,7 @@ module RubyPicasa
       :items_per_page,
       :allow_downloads
     has_many :links, Link, 'link'
-    has_many :entries, Photo, 'entry'
+    has_many :entries, :Photo, 'entry'
     has_one :content, PhotoUrl, 'media:content'
     has_many :thumbnails, PhotoUrl, 'media:thumbnail'
     flatten 'media:group'
