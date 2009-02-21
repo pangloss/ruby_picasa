@@ -1,5 +1,7 @@
 require 'cgi'
 require 'nokogiri'
+require 'active_support'
+
 module RubyPicasa
   class Picasa
 
@@ -35,6 +37,107 @@ module RubyPicasa
     def album(id_or_url)
       xml = request_album_feed
       Album.new(xml)
+    end
+  end
+
+  class Xml
+    def initialize(xml)
+      return if xml.nil?
+      if xml.is_a? String
+        xml = Nokogiri::XML(xml) 
+        # skip the <?xml?> tag
+        xml = xml.child if xml.name == 'document'
+      end
+      primary_xml_element(xml) if xml
+    end
+
+    def xml_text_to_value(value)
+      case value
+      when 'true'
+        true
+      when 'false'
+        false
+      when /\A\d{4}-\d\d-\d\dT(\d\d[:.]){3}\d{3}\w\Z/
+        DateTime.parse(value)
+      when /\A\d+\Z/
+        value.to_i
+      when /\A\d+\.\d+\Z/
+        value.to_f
+      else
+        value
+      end
+    end
+  end
+
+  class AttributeParser < Xml
+    def primary_xml_element(xml)
+      xml.attributes.each do |name, value|
+        method = "#{ name }="
+        if respond_to? method
+          send(method, xml_text_to_value(value))
+        end
+      end
+    end
+  end
+
+  class XmlParser < Xml
+    def primary_xml_element(xml)
+      parse_xml(xml.child)
+    end
+
+    def parse_xml(xml)
+      while xml
+        read_xml_element(xml)
+        xml = xml.next
+      end
+    end
+
+    def method_name(x)
+      names = []
+      if x.namespace
+        names << ["#{ x.namespace }_#{ x.name.pluralize }", true]
+        names << ["#{ x.namespace }_#{ x.name }", false]
+      end
+      names << [x.name.pluralize, true]
+      names << [x.name, false]
+      name, plural = names.find do |n, _|
+        respond_to?("#{ n.underscore }=")
+      end
+      if name
+        [name.underscore, "#{ name.underscore }=", plural]
+      end
+    end
+
+    def read_xml_element(x)
+      return if x.is_a? Nokogiri::XML::Text
+      return unless self.class.namespace?(x.namespace) if x.namespace
+      value = nil
+      full_name = "#{ x.namespace }:#{ x.name }"
+      if type = self.class.types[full_name]
+        if type == :self
+          parse_xml(x.child)
+          return
+        else
+          set_xml_property(x) { type.new(x) }
+        end
+      else
+        set_xml_property(x) { xml_text_to_value(x.text) }
+      end
+    end
+
+    def set_xml_property(x)
+      getter, setter, plural = method_name(x)
+      if getter
+        value = nil
+        if plural
+          value = send(getter)
+          value ||= []
+          value << yield
+        else
+          value = yield
+        end
+        send(setter, value)
+      end
     end
   end
 
@@ -151,89 +254,6 @@ module RubyPicasa
   class PhotoUrl < AttributeParser
     attr_accessor :url, :height, :width
     def initialize(xml)
-    end
-  end
-
-  class Xml
-    def initialize(xml)
-      return if xml.nil?
-      if xml.is_a? String
-        xml = Nokogiri::XML(xml) 
-        # skip the <?xml?> tag
-        xml = xml.child if xml.name == 'document'
-      end
-      primary_xml_element(xml) if xml
-    end
-
-    def xml_text_to_value(value)
-      case value
-      when 'true'
-        true
-      when 'false'
-        false
-      when /\A\d{4}-\d\d-\d\dT(\d\d[:.]){3}\d{3}\w\Z/
-        DateTime.parse(value)
-      when /\A\d+\Z/
-        value.to_i
-      when /\A\d+\.\d+\Z/
-        value.to_f
-      else
-        value
-      end
-    end
-  end
-
-  class AttributeParser < Xml
-    def primary_xml_element(xml)
-      xml.attributes.each do |name, value|
-        method = "#{ name }="
-        if respond_to? method
-          send(method, xml_text_to_value(value))
-        end
-      end
-    end
-  end
-
-  class XmlParser < Xml
-    def primary_xml_element(xml)
-      parse_xml(xml.child)
-    end
-
-    def parse_xml(xml)
-      while xml
-        load_xml_element(xml)
-        xml = xml.next
-      end
-    end
-
-    def method_name(x)
-      names = [ "#{ x.namespace }_#{ x.name.pluralize }",
-                "#{ x.namespace }_#{ x.name }",
-                x.name.pluralize,
-                x.name ]
-      name = names.find do |n|
-        respond_to?("#{ n.underscore }=")
-      end
-      if name
-        "#{ n.underscore }="
-      end
-    end
-
-    def read_xml_element(x)
-      value = nil
-      full_name = "#{ x.namespace }:#{ x.name }"
-      if type = self.types[full_name]
-        if type == :self
-          parse_xml(x.child)
-          return
-        else
-          return unless method_name(x)
-          send(method_name(x), type.new(x))
-        end
-      else
-        return unless method_name(x)
-        send(method_name(x), xml_text_to_value(x.text))
-      end
     end
   end
 end
