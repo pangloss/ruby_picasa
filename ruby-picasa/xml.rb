@@ -1,4 +1,8 @@
-module RubyPicasa
+require 'active_support'
+require 'active_support/inflections'
+require 'nokogiri'
+
+module Objectify
   class Xml
     module Dsl
       def self.extended(target)
@@ -7,7 +11,8 @@ module RubyPicasa
 
       def init
         parent = ancestors[1]
-        if parent
+
+        unless /Xml|ElementParser|DocumentParser/ =~ parent.name
           @collections = parent.instance_variable_get('@collections') || []
           @attributes = parent.instance_variable_get('@attributes') || []
           @flatten = parent.instance_variable_get('@flatten') || []
@@ -88,8 +93,10 @@ module RubyPicasa
       def attribute_type(qualified_name)
         type = @types[qualified_name]
         if type and not type.is_a? Class
-          type = "RubyPicasa::#{ type }".constantize rescue nil
-          type ||= type.to_s.constantize
+          type = type.to_s.constantize rescue nil
+          type ||= type.to_s.
+            split(/::/).reject { |n| n.blank? }.
+            inject(self) { |p, n| p.const_get(n) }
           @types[qualified_name] = type
         end
         type
@@ -142,7 +149,7 @@ module RubyPicasa
     end
   end
 
-  class AttributeParser < Xml
+  class ElementParser < Xml
     def primary_xml_element(xml)
       xml.attributes.keys.each do |name|
         method = "#{ name }="
@@ -150,10 +157,16 @@ module RubyPicasa
           send(method, xml_text_to_value(xml[name]))
         end
       end
+      if respond_to? :inner_html=
+        self.inner_html = xml.inner_html
+      end
+      if respond_to? :inner_text=
+        self.inner_text = xml.inner_text
+      end
     end
   end
 
-  class XmlParser < Xml
+  class DocumentParser < Xml
     def qualified_name(x)
       qn = x.name
       qn = "#{ x.namespace }:#{ x.name }" if x.namespace
@@ -185,7 +198,7 @@ module RubyPicasa
     end
 
     def attributes
-      self.class.attributes
+      @attributes
     end
 
     def primary_xml_element(xml)
@@ -220,5 +233,58 @@ module RubyPicasa
         end
       end
     end
+  end
+
+  module Atom
+    class Link < ElementParser
+      attr_accessor :rel, :type, :href
+    end
+
+    class Category < ElementParser
+      attr_accessor :scheme, :term
+    end
+
+    class Content < ElementParser
+      attr_accessor :type, :xml_lang, :xml_base, :src, :inner_html
+    end
+
+    class Genarator < ElementParser
+      attr_accessor :version, :uri, :inner_html
+    end
+
+    class Feed < DocumentParser
+      attributes :id,
+        :published,
+        :updated,
+        :title,
+        :subtitle,
+        :rights,
+        :icon
+      has_many :links, Link, 'link'
+      has_many :entries, :Entry, 'entry'
+      has_one :genarator, Genarator, 'genarator'
+    end
+
+    class Entry < DocumentParser
+      attributes :id,
+        :published,
+        :updated,
+        :title,
+        :summary
+      has_many :links, Link, 'link'
+      has_one :category, Category, 'category'
+      has_many :contents, Content, 'content'
+      has_many :authors, :Author, 'author'
+      has_many :contributors, :Contributor, 'contributor'
+    end
+
+    class Author < DocumentParser
+      attributes :name, :uri, :email
+    end
+
+    class Contributor < DocumentParser
+      attributes :name
+    end
+
   end
 end

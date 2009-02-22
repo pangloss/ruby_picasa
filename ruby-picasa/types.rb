@@ -13,15 +13,12 @@
 # Define which namespaces you support in the class method #namespaces. Any
 # elements defined in other namespaces are automatically ignored.
 module RubyPicasa
-  class Link < AttributeParser
-    attr_accessor :rel, :type, :href
-  end
-
-  class PhotoUrl < AttributeParser
+  class PhotoUrl < Objectify::Xml::ElementParser
     attr_accessor :url, :height, :width
   end
 
-  class User < XmlParser
+
+  class User < Objectify::Xml::DocumentParser
     attributes :id,
       :updated,
       :title,
@@ -29,7 +26,7 @@ module RubyPicasa
       :start_index,
       :items_per_page,
       :thumbnail
-    has_many :links, Link, 'link'
+    has_many :links, Objectify::Atom::Link, 'link'
     has_many :entries, :Album, 'entry'
     has_one :content, PhotoUrl, 'media:content'
     has_many :thumbnails, PhotoUrl, 'media:thumbnail'
@@ -38,7 +35,7 @@ module RubyPicasa
   end
 
 
-  class Album < XmlParser
+  class Album < Objectify::Xml::DocumentParser
     attributes :id,
       :published,
       :updated,
@@ -53,7 +50,7 @@ module RubyPicasa
       :start_index,
       :items_per_page,
       :allow_downloads
-    has_many :links, Link, 'link'
+    has_many :links, Objectify::Atom::Link, 'link'
     has_many :entries, :Photo, 'entry'
     has_one :content, PhotoUrl, 'media:content'
     has_many :thumbnails, PhotoUrl, 'media:thumbnail'
@@ -61,7 +58,8 @@ module RubyPicasa
     namespaces %w[openSearch gphoto media]
   end
 
-  class Photo < XmlParser
+
+  class Photo < Objectify::Xml::DocumentParser
     attributes :id,
       :published,
       :updated,
@@ -75,12 +73,13 @@ module RubyPicasa
       :height,
       :description,
       :keywords
-    has_many :links, Link, 'link'
+    has_many :links, Objectify::Atom::Link, 'link'
     has_one :content, PhotoUrl, 'media:content'
     has_many :thumbnails, PhotoUrl, 'media:thumbnail'
     namespaces %w[gphoto media]
     flatten 'media:group'
   end
+
 
   class Search < Album
     def initialize(q, start_index = 1, max_results = 10)

@@ -1,8 +1,4 @@
-require 'active_support'
-require 'active_support/inflections'
 require 'cgi'
-require 'nokogiri'
-
 require 'ruby-picasa/xml'
 require 'ruby-picasa/types'
 
