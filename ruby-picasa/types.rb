@@ -13,12 +13,12 @@
 # Define which namespaces you support in the class method #namespaces. Any
 # elements defined in other namespaces are automatically ignored.
 module RubyPicasa
-  class PhotoUrl < Objectify::Xml::ElementParser
+  class PhotoUrl < Objectify::ElementParser
     attr_accessor :url, :height, :width
   end
 
 
-  class User < Objectify::Xml::DocumentParser
+  class User < Objectify::DocumentParser
     attributes :id,
       :updated,
       :title,
@@ -35,7 +35,7 @@ module RubyPicasa
   end
 
 
-  class Album < Objectify::Xml::DocumentParser
+  class Album < Objectify::DocumentParser
     attributes :id,
       :published,
       :updated,
@@ -59,7 +59,7 @@ module RubyPicasa
   end
 
 
-  class Photo < Objectify::Xml::DocumentParser
+  class Photo < Objectify::DocumentParser
     attributes :id,
       :published,
       :updated,
@@ -83,10 +83,12 @@ module RubyPicasa
 
   class Search < Album
     def initialize(q, start_index = 1, max_results = 10)
+      raise "Incorect query type." unless q.is_a? String
       @q = q
       @start_index = start_index
       @max_results = max_results
-      xml = open("http://picasaweb.google.com/data/feed/api/all?q=#{ CGI.escape(q.to_s) }&start-index=#{ CGI.escape(start_index.to_s) }&max-results=#{ CGI.escape(max_results.to_s) }").read
+      request = "http://picasaweb.google.com/data/feed/api/all?q=#{ CGI.escape(q.to_s) }&start-index=#{ CGI.escape(start_index.to_s) }&max-results=#{ CGI.escape(max_results.to_s) }"
+      xml = open(request).read
       super(xml)
     end
 
