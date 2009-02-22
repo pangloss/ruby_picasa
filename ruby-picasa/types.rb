@@ -19,6 +19,7 @@ module RubyPicasa
 
 
   class User < Objectify::DocumentParser
+    attr_accessor :session
     attributes :id,
       :updated,
       :title,
@@ -36,6 +37,7 @@ module RubyPicasa
 
 
   class Album < Objectify::DocumentParser
+    attr_accessor :session
     attributes :id,
       :published,
       :updated,
@@ -56,6 +58,19 @@ module RubyPicasa
     has_many :thumbnails, PhotoUrl, 'media:thumbnail'
     flatten 'media:group'
     namespaces %w[openSearch gphoto media]
+
+    def public?
+      rights == 'public'
+    end
+
+    def private?
+      rights == 'private'
+    end
+
+    def get
+      session ||= parent.session
+      session.album(id)
+    end
   end
 
 
@@ -87,8 +102,8 @@ module RubyPicasa
       @q = q
       @start_index = start_index
       @max_results = max_results
-      request = "http://picasaweb.google.com/data/feed/api/all?q=#{ CGI.escape(q.to_s) }&start-index=#{ CGI.escape(start_index.to_s) }&max-results=#{ CGI.escape(max_results.to_s) }"
-      xml = open(request).read
+      request = "http://#{ Picasa.host }#{ Picasa.path('all', :q => q, :start_index => start_index, :max_results => max_results) }"
+      xml = Net::HTTP.get(URI.parse(request))
       super(xml)
     end
 

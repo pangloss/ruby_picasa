@@ -1,15 +1,15 @@
 require 'objectify_xml'
 require 'objectify_xml/atom'
 require 'cgi'
+require 'net/http'
+require 'net/https'
 require 'ruby-picasa/types'
 
-require 'open-uri'
-
 module RubyPicasa
-  def PicasaError < StandardError
+  class PicasaError < StandardError
   end
 
-  def PicasaTokenError < PicasaError
+  class PicasaTokenError < PicasaError
   end
 end
 
@@ -59,9 +59,16 @@ class Picasa
       'picasaweb.google.com'
     end
 
+    def is_url?(path)
+      path.to_s =~ %r{\Ahttps?://}
+    end
+
     def path(user_id, args = {})
+      if is_url?(user_id)
+        return URI.parse(user_id).path
+      end
       path = ["/data/feed/api/user", CGI.escape(user_id)]
-      path += ['albumid', CGI.escape(options[:album_id])] if options[:album_id]
+      path += ['albumid', CGI.escape(args[:album_id])] if args[:album_id]
       options = {}
       options['kind'] = 'photo' if args[:recent_photos]
       options['kind'] = 'comment' if args[:comments]
@@ -99,7 +106,9 @@ class Picasa
     http = Net::HTTP.new("www.google.com", 443)
     http.use_ssl = true
     response = http.get('/accounts/accounts/AuthSubSessionToken', auth_header)
-    @token = response['Token']
+    pp response.to_hash
+    puts response.body
+    @token = response.body.scan(/Token=(.*)/).first
     if @token.nil?
       raise PicasaTokenError, 'The request to upgrade to a session token failed.'
     end
@@ -108,7 +117,9 @@ class Picasa
 
   def user(user_id = 'default', options = {})
     if xml = get(user_id, options)
-      User.new(xml)
+      u = User.new(xml, self)
+      u.session = self
+      u
     end
   end
 
@@ -122,8 +133,9 @@ class Picasa
 
   # The album contains photos, there is no individual photo request.
   def album(album_id, user_id = 'default', options = {})
+    user_id = album_id if Picasa.is_url?(album_id)
     if xml = get(user_id, options.merge(:album_id => album_id))
-      Album.new(xml)
+      Album.new(xml, self)
     end
   end
 
