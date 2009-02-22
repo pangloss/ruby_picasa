@@ -1,5 +1,6 @@
+require 'objectify_xml'
+require 'objectify_xml/atom'
 require 'cgi'
-require 'ruby-picasa/xml'
 require 'ruby-picasa/types'
 
 require 'open-uri'
