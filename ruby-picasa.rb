@@ -32,12 +32,11 @@ class Picasa
     # happen in the action that is pointed to by the return_to_url argument
     # when the authorization_url is created.
     def token_from_request(request)
-      auth = request.headers['Authorization'] 
-      if auth
-        token = auth.scan(/AuthSub token="(.*)"/).first
-        return token if token
+      if token = request.params['token']
+        return token
+      else
+        raise PicasaTokenError, 'No Picasa authorization token was found.'
       end
-      raise PicasaTokenError, 'No Picasa authorization token was found.'
     end
 
     # Takes a Rails request object as in token_from_request, then makes the
@@ -106,8 +105,6 @@ class Picasa
     http = Net::HTTP.new("www.google.com", 443)
     http.use_ssl = true
     response = http.get('/accounts/accounts/AuthSubSessionToken', auth_header)
-    pp response.to_hash
-    puts response.body
     @token = response.body.scan(/Token=(.*)/).first
     if @token.nil?
       raise PicasaTokenError, 'The request to upgrade to a session token failed.'

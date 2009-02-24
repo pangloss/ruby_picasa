@@ -14,14 +14,14 @@
 # elements defined in other namespaces are automatically ignored.
 module RubyPicasa
   class PhotoUrl < Objectify::ElementParser
-    attr_accessor :url, :height, :width
+    attributes :url, :height, :width
   end
 
 
   class User < Objectify::DocumentParser
     attr_accessor :session
-    attributes :id,
-      :updated,
+    attribute :id, 'id'
+    attributes :updated,
       :title,
       :total_results, # represents total number of albums
       :start_index,
@@ -31,15 +31,19 @@ module RubyPicasa
     has_many :entries, :Album, 'entry'
     has_one :content, PhotoUrl, 'media:content'
     has_many :thumbnails, PhotoUrl, 'media:thumbnail'
-    namespaces %w[openSearch gphoto]
+    namespaces :openSearch, :gphoto
     flatten 'media:group'
+
+    def albums
+      entries
+    end
   end
 
 
   class Album < Objectify::DocumentParser
     attr_accessor :session
-    attributes :id,
-      :published,
+    attribute :id, 'id'
+    attributes :published,
       :updated,
       :title,
       :summary,
@@ -54,10 +58,10 @@ module RubyPicasa
       :allow_downloads
     has_many :links, Objectify::Atom::Link, 'link'
     has_many :entries, :Photo, 'entry'
-    has_one :content, PhotoUrl, 'media:content'
-    has_many :thumbnails, PhotoUrl, 'media:thumbnail'
+    has_one 'content', PhotoUrl, 'media:content'
+    has_many 'thumbnails', PhotoUrl, 'media:thumbnail'
     flatten 'media:group'
-    namespaces %w[openSearch gphoto media]
+    namespaces :openSearch, :gphoto, :media
 
     def public?
       rights == 'public'
@@ -71,12 +75,16 @@ module RubyPicasa
       session ||= parent.session
       session.album(id)
     end
+
+    def photos
+      entries
+    end
   end
 
 
   class Photo < Objectify::DocumentParser
-    attributes :id,
-      :published,
+    attribute :id, 'id'
+    attributes :published,
       :updated,
       :title,
       :summary,
@@ -87,11 +95,12 @@ module RubyPicasa
       :width,
       :height,
       :description,
-      :keywords
-    has_many :links, Objectify::Atom::Link, 'link'
-    has_one :content, PhotoUrl, 'media:content'
-    has_many :thumbnails, PhotoUrl, 'media:thumbnail'
-    namespaces %w[gphoto media]
+      :keywords,
+      :credit
+    has_many 'links', Objectify::Atom::Link, 'link'
+    has_one 'content', PhotoUrl, 'media:content'
+    has_many 'thumbnails', PhotoUrl, 'media:thumbnail'
+    namespaces :gphoto, :media
     flatten 'media:group'
   end
 
