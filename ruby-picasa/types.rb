@@ -71,13 +71,19 @@ module RubyPicasa
       rights == 'private'
     end
 
-    def get
+    def load(options = {})
       session ||= parent.session
-      session.album(id)
+      session.album(options.merge(:album_id => id))
     end
 
-    def photos
-      entries
+    def photos(options = {})
+      if entries.blank? and !@photos_requested
+        @photos_requested = true
+        session ||= parent.session
+        self.entries = session.photos(options.merge(:album_id => id))
+      else
+        entries
+      end
     end
   end
 
@@ -102,6 +108,14 @@ module RubyPicasa
     has_many 'thumbnails', PhotoUrl, 'media:thumbnail'
     namespaces :gphoto, :media
     flatten 'media:group'
+
+    def url(thumb_name = nil)
+      if thumb_name
+        thumbnails.find { |t| t }.url
+      else
+        content.url
+      end
+    end
   end
 
 

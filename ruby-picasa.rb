@@ -43,8 +43,8 @@ class Picasa
     # token authorization request to produce the permanent token. This will
     # only work if request_session was true when you created the
     # authorization_url.
-    def authorize_request(user_id, request)
-      p = Picasa.new(user_id, token_from_request(request))
+    def authorize_request(request)
+      p = Picasa.new(token_from_request(request))
       p.authorize_token!
       p
     end
@@ -62,13 +62,26 @@ class Picasa
       path.to_s =~ %r{\Ahttps?://}
     end
 
-    def path(user_id, args = {})
-      if is_url?(user_id)
-        return URI.parse(user_id).path
-      end
-      path = ["/data/feed/api/user", CGI.escape(user_id)]
-      path += ['albumid', CGI.escape(args[:album_id])] if args[:album_id]
+    def path(args = {})
       options = {}
+      path = []
+      url = args[:user_id] if is_url?(args[:user_id]) 
+      url ||= args[:album_id] if is_url?(args[:album_id])
+      if url
+        uri = URI.parse(url)
+        path << uri.path
+        if uri.query
+          uri.query.split('&').each do |query|
+            k, v = query.split('=')
+            options[k] = v
+          end
+        end
+      else
+        path = ["/data/feed/api/user", CGI.escape(args[:user_id] || 'default')]
+        pp args
+        pp args[:album_id]
+        path += ['albumid', CGI.escape(args[:album_id])] if args[:album_id]
+      end
       options['kind'] = 'photo' if args[:recent_photos]
       options['kind'] = 'comment' if args[:comments]
       options['max-results'] = args[:max_results] if args[:max_results]
@@ -84,13 +97,12 @@ class Picasa
     end
   end
 
-  attr_reader :token, :user_id
+  attr_reader :token
 
-  # can use 'default' to use the currently authorized user's account, but I'm not clear how that would know
-  # 
   def initialize(token)
-    @user_id = user_id
     @token = token
+    @users = {}
+    @albums = {}
   end
 
   def auth_header
@@ -112,46 +124,66 @@ class Picasa
     @token
   end
 
-  def user(user_id = 'default', options = {})
-    if xml = get(user_id, options)
-      u = User.new(xml, self)
-      u.session = self
-      u
+  def user(options = {})
+    with_cache(@users, options) do
+      if xml = xml(options)
+        u = User.new(xml, self)
+        u.session = self
+        u
+      end
     end
   end
 
-  def albums(*args)
-    if u = user(*args)
+  def albums(options = {})
+    if u = user(options)
       u.entries
     else
       []
     end
   end
 
-  # The album contains photos, there is no individual photo request.
-  def album(album_id, user_id = 'default', options = {})
-    user_id = album_id if Picasa.is_url?(album_id)
-    if xml = get(user_id, options.merge(:album_id => album_id))
-      Album.new(xml, self)
+  def album_by_title(title, options = {})
+    if a = albums.find { |a| title === a.title }
+      a.load options
     end
   end
 
-  def photos(*args)
-    if a = album(*args)
+  # The album contains photos, there is no individual photo request.
+  def album(options = {})
+    with_cache(@albums, options) do
+      if xml = xml(options)
+        Album.new(xml, self)
+      end
+    end
+  end
+
+  def photos(options = {})
+    if a = album(options)
       a.entries
     else
       []
     end
   end
 
-  private
-
-  def get(user_id, args = {})
+  def xml(options = {})
     http = Net::HTTP.new(Picasa.host, 80)
-    response = http.get(Picasa.path(user_id, args), auth_header)
+    path = Picasa.path(options)
+    puts path
+    response = http.get(path, auth_header)
     if response.code =~ /20[01]/
       response.body
     end
   end
 
+  private
+
+  def with_cache(hash, options)
+    path = Picasa.path(options)
+    hash.delete(path) if options[:reload]
+    if hash.has_key? path
+      hash[path]
+    else
+      hash[path] = yield
+    end
+  end
 end
