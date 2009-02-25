@@ -64,42 +64,69 @@ class Picasa
       path.to_s =~ %r{\Ahttps?://}
     end
 
+    # For more on possible options and their meanings, see: 
+    # http://code.google.com/apis/picasaweb/reference.html
+    #
+    # The following values are valid for the thumbsize and imgmax query
+    # parameters and are embeddable on a webpage. These images are available as
+    # both cropped(c) and uncropped(u) sizes by appending c or u to the size.
+    # As an example, to retrieve a 72 pixel image that is cropped, you would
+    # specify 72c, while to retrieve the uncropped image, you would specify 72u
+    # for the thumbsize or imgmax query parameter values.
+    #
+    # 32, 48, 64, 72, 144, 160
+    #
+    # The following values are valid for the thumbsize and imgmax query
+    # parameters and are embeddable on a webpage. These images are available as
+    # only uncropped(u) sizes by appending u to the size or just passing the
+    # size value without appending anything. 
+    #
+    # 200, 288, 320, 400, 512, 576, 640, 720, 800
+    #
+    # The following values are valid for the thumbsize and imgmax query
+    # parameters and are not embeddable on a webpage. These image sizes are
+    # only available in uncropped format and are accessed using only the size
+    # (no u is appended to the size).
+    #
+    # 912, 1024, 1152, 1280, 1440, 1600
+    # 
     def path(args = {})
-      options = {}
-      path = []
+      path, options = 
+      if path.nil?
+        path = ["/data/feed/api/user", CGI.escape(args[:user_id] || 'default')]
+        path += ['albumid', CGI.escape(args[:album_id])] if args[:album_id]
+        path = path.join('/')
+      end
+      options['kind'] = 'photo' if args[:recent_photos] or args[:album_id]
+      [:max_results, :start_index, :tag, :q, :kind,
+       :access, :thumbsize, :imgmax, :bbox, :l].each do |arg|
+        options[arg.to_s.dasherize] = args[arg] if args[arg]
+      end
+      if options.empty?
+        path
+      else
+        [path, options.map { |k, v| [k.to_s, CGI.escape(v.to_s)].join('=') }.join('&')].join('?')
+      end
+    end
+
+    private
+
+    def parse_url(args)
       url = args[:url]
       url ||= args[:user_id] if is_url?(args[:user_id]) 
       url ||= args[:album_id] if is_url?(args[:album_id])
       if url
         uri = URI.parse(url)
-        path << uri.path
+        path = uri.path
         if uri.query
           uri.query.split('&').each do |query|
             k, v = query.split('=')
             options[k] = v
           end
         end
+        [path, options]
       else
-        path = ["/data/feed/api/user", CGI.escape(args[:user_id] || 'default')]
-        pp args
-        pp args[:album_id]
-        path += ['albumid', CGI.escape(args[:album_id])] if args[:album_id]
-      end
-      if args[:kind]
-        options['kind'] = args[:kind]
-      else
-        options['kind'] = 'photo' if args[:recent_photos] or args[:album_id]
-        options['kind'] = 'comment' if args[:comments]
-      end
-      options['max-results'] = args[:max_results] if args[:max_results]
-      options['start-index'] = args[:start_index] if args[:start_index]
-      options['tag'] = args[:tag] if args[:tag]
-      options['q'] = args[:q] if args[:q] # search string
-      path = path.join('/')
-      if options.empty?
-        path
-      else
-        [path, options.map { |k, v| [k.to_s, CGI.escape(v.to_s)].join('=') }.join('&')].join('?')
+        [nil, {}]
       end
     end
   end
@@ -109,14 +136,6 @@ class Picasa
   def initialize(token)
     @token = token
     @request_cache = {}
-  end
-
-  def auth_header
-    if token
-      { "Authorization" => %{AuthSub token="#{ token }"} }
-    else
-      {}
-    end
   end
 
   def authorize_token!
@@ -130,64 +149,60 @@ class Picasa
     @token
   end
 
-  def user(options = {})
-    with_cache(options) do
-      if xml = xml(options)
-        class_from_xml(xml)
-      end
-    end
+  def user(user_id_or_url = 'default', options = {})
+    options[:user_id] = user_id_or_url
+    get(options)
   end
 
-  def albums(options = {})
-    if u = user(options)
-      u.entries
-    else
-      []
-    end
+  def album(album_id_or_url, options = {})
+    options[:album_id] = album_id_or_url
+    get(options)
+  end
+
+  def from_url(url, options = {})
+    options[:url] = url
+    get(options)
+  end
+
+  def recent_photos(user_id_or_url = 'default', options = {})
+    options[:user_id] = user_id
+    options[:recent_photos] = true
+    get(options)
   end
 
   def album_by_title(title, options = {})
-    if a = albums.find { |a| title === a.title }
+    if a = user.albums.find { |a| title === a.title }
       a.load options
     end
   end
 
   # The album contains photos, there is no individual photo request.
-  def album(options = {})
-    with_cache(options) do
-      if xml = xml(options)
-        class_from_xml(xml)
-      end
-    end
-  end
-
-  def photos(options = {})
-    if a = album(options)
-      a.entries
-    else
-      []
-    end
-  end
-
   def xml(options = {})
     http = Net::HTTP.new(Picasa.host, 80)
     path = Picasa.path(options)
-    puts path
     response = http.get(path, auth_header)
     if response.code =~ /20[01]/
       response.body
     end
   end
 
-  def from_url(url, options = {})
-    with_cache(options.merge(:url => url)) do
-      if xml = xml(:url => url)
+  def get(options = {})
+    with_cache(options) do
+      if xml = xml(options)
         class_from_xml(xml)
       end
     end
   end
 
   private
+
+  def auth_header
+    if token
+      { "Authorization" => %{AuthSub token="#{ token }"} }
+    else
+      {}
+    end
+  end
 
   def with_cache(options)
     path = Picasa.path(options)
