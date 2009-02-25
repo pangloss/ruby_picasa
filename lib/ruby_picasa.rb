@@ -188,12 +188,10 @@ class Picasa
     end
   end
 
-  # The album contains photos, there is no individual photo request.
   def xml(options = {})
     http = Net::HTTP.new(Picasa.host, 80)
     path = Picasa.path(options)
     response = http.get(path, auth_header)
-    puts response.body
     if response.code =~ /20[01]/
       response.body
     end

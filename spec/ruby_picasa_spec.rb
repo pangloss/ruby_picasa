@@ -195,4 +195,41 @@ describe Picasa do
       @p.album_by_title('aoeu').should be_nil
     end
   end
+
+  describe 'xml' do
+    it 'should return the body with a 200 status' do
+      body 'xml goes here'
+      @p.xml.should == 'xml goes here'
+    end
+    it 'should return nil with a non-200 status' do
+      body 'xml goes here'
+      @response.expects(:code).returns '404'
+      @p.xml.should be_nil
+    end
+  end
+
+  describe 'get' do
+    it 'should call class_from_xml if with_cache yields' do
+      @p.expects(:with_cache).with({}).yields(:xml).returns(:result)
+      @p.expects(:class_from_xml).with(:xml)
+      @p.get.should == :result
+    end
+
+    it 'should do nothing if with_cache does not yield' do
+      @p.expects(:with_cache).with({}) # doesn't yield
+      @p.expects(:class_from_xml).never
+      @p.get.should be_nil
+    end
+  end
+
+  describe 'auth_header' do
+    it 'should build an AuthSub header' do
+      @p.auth_header.should == { "Authorization" => %{AuthSub token="token"} }
+    end
+
+    it 'should do nothing' do
+      p = Picasa.new nil
+      p.auth_header.should == { }
+    end
+  end
 end
