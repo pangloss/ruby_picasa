@@ -1,0 +1,7 @@
+History.txt
+Manifest.txt
+README.txt
+Rakefile
+bin/ruby_picasa
+lib/ruby_picasa.rb
+test/test_ruby_picasa.rb
