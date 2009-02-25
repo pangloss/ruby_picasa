@@ -15,7 +15,6 @@
 module RubyPicasa
   module Shared
     def self.included(target)
-      target.send(:attr_writer, :session)
       target.attribute :id, 'id'
       target.attributes :updated,
         :title
@@ -30,6 +29,10 @@ module RubyPicasa
       links.find { |l| l.rel == rel }
     end
 
+    def session=(session)
+      @session = session
+    end
+
     def session
       if @session
         @session
@@ -39,12 +42,15 @@ module RubyPicasa
     end
 
     def next
-      if link('next')
-        session.from_url(link('next').href)
+      if link = link('next')
+        session.from_url(link.href)
       end
     end
 
     def previous
+      if link = link('previous')
+        session.from_url(link.href)
+      end
     end
   end
 
