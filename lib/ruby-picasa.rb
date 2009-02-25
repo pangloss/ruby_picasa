@@ -6,6 +6,8 @@ require 'net/https'
 require 'ruby-picasa/types'
 
 module RubyPicasa
+  VERSION = '0.1.0'
+
   class PicasaError < StandardError
   end
 
@@ -198,7 +200,7 @@ class Picasa
   end
 
   def class_from_xml(xml)
-    r = if xml = Nokogiri::XML.parse(xml)
+    if xml = Nokogiri::XML.parse(xml)
       # There is something wrong with Nokogiri xpath/css search with
       # namespaces. If you are searching a document that has namespaces,
       # it's impossible to match any elements in the root xmlns namespace.
@@ -206,7 +208,7 @@ class Picasa
       feed, entry = xml.search('//*[@term][@scheme]', xml.namespaces)
       feed_scheme = feed['term'] if feed
       entry_scheme = entry['term'] if entry
-      case feed_scheme
+      r = case feed_scheme
       when /#user$/
         case entry_scheme
         when /#album$/
@@ -222,12 +224,12 @@ class Picasa
       when /#photo$/
         Photo.new(xml, self)
       end
-    end
-    if r
-      r.session = self
-      r
-    else
-      raise "Unknown feed type\n feed:  #{ feed_scheme }\n entry: #{ entry_scheme }"
+      if r
+        r.session = self
+        r
+      else
+        raise PicasaError, "Unknown feed type\n feed:  #{ feed_scheme }\n entry: #{ entry_scheme }"
+      end
     end
   end
 end
