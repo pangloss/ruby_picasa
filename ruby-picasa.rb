@@ -65,7 +65,8 @@ class Picasa
     def path(args = {})
       options = {}
       path = []
-      url = args[:user_id] if is_url?(args[:user_id]) 
+      url = args[:url]
+      url ||= args[:user_id] if is_url?(args[:user_id]) 
       url ||= args[:album_id] if is_url?(args[:album_id])
       if url
         uri = URI.parse(url)
@@ -82,8 +83,12 @@ class Picasa
         pp args[:album_id]
         path += ['albumid', CGI.escape(args[:album_id])] if args[:album_id]
       end
-      options['kind'] = 'photo' if args[:recent_photos]
-      options['kind'] = 'comment' if args[:comments]
+      if args[:kind]
+        options['kind'] = args[:kind]
+      else
+        options['kind'] = 'photo' if args[:recent_photos] or args[:album_id]
+        options['kind'] = 'comment' if args[:comments]
+      end
       options['max-results'] = args[:max_results] if args[:max_results]
       options['start-index'] = args[:start_index] if args[:start_index]
       options['tag'] = args[:tag] if args[:tag]
@@ -101,8 +106,7 @@ class Picasa
 
   def initialize(token)
     @token = token
-    @users = {}
-    @albums = {}
+    @request_cache = {}
   end
 
   def auth_header
@@ -125,11 +129,9 @@ class Picasa
   end
 
   def user(options = {})
-    with_cache(@users, options) do
+    with_cache(options) do
       if xml = xml(options)
-        u = User.new(xml, self)
-        u.session = self
-        u
+        class_from_xml(xml)
       end
     end
   end
@@ -150,9 +152,9 @@ class Picasa
 
   # The album contains photos, there is no individual photo request.
   def album(options = {})
-    with_cache(@albums, options) do
+    with_cache(options) do
       if xml = xml(options)
-        Album.new(xml, self)
+        class_from_xml(xml)
       end
     end
   end
@@ -175,15 +177,57 @@ class Picasa
     end
   end
 
+  def from_url(url, options = {})
+    with_cache(options.merge(:url => url)) do
+      if xml = xml(:url => url)
+        class_from_xml(xml)
+      end
+    end
+  end
+
   private
 
-  def with_cache(hash, options)
+  def with_cache(options)
     path = Picasa.path(options)
-    hash.delete(path) if options[:reload]
-    if hash.has_key? path
-      hash[path]
+    @request_cache.delete(path) if options[:reload]
+    if @request_cache.has_key? path
+      @request_cache[path]
     else
-      hash[path] = yield
+      @request_cache[path] = yield
+    end
+  end
+
+  def class_from_xml(xml)
+    r = if xml = Nokogiri::XML.parse(xml)
+      # There is something wrong with Nokogiri xpath/css search with
+      # namespaces. If you are searching a document that has namespaces,
+      # it's impossible to match any elements in the root xmlns namespace.
+      # Matching just on attributes works though.
+      feed, entry = xml.search('//*[@term][@scheme]', xml.namespaces)
+      feed_scheme = feed['term'] if feed
+      entry_scheme = entry['term'] if entry
+      case feed_scheme
+      when /#user$/
+        case entry_scheme
+        when /#album$/
+          User.new(xml, self)
+        when /#photo$/
+          RecentPhotos.new(xml, self)
+        end
+      when /#album$/
+        case entry_scheme
+        when nil, /#photo$/
+          Album.new(xml, self)
+        end
+      when /#photo$/
+        Photo.new(xml, self)
+      end
+    end
+    if r
+      r.session = self
+      r
+    else
+      raise "Unknown feed type\n feed:  #{ feed_scheme }\n entry: #{ entry_scheme }"
     end
   end
 end

@@ -13,26 +13,53 @@
 # Define which namespaces you support in the class method #namespaces. Any
 # elements defined in other namespaces are automatically ignored.
 module RubyPicasa
+  module Shared
+    def self.included(target)
+      target.send(:attr_writer, :session)
+      target.attribute :id, 'id'
+      target.attributes :updated,
+        :title
+      target.has_many :links, Objectify::Atom::Link, 'link'
+      target.has_one :content, PhotoUrl, 'media:content'
+      target.has_many :thumbnails, PhotoUrl, 'media:thumbnail'
+      target.namespaces :openSearch, :gphoto, :media
+      target.flatten 'media:group'
+    end
+
+    def link(rel)
+      links.find { |l| l.rel == rel }
+    end
+
+    def session
+      if @session
+        @session
+      else
+        @session = parent.session if parent
+      end
+    end
+
+    def next
+      if link('next')
+        session.from_url(link('next').href)
+      end
+    end
+
+    def previous
+    end
+  end
+
   class PhotoUrl < Objectify::ElementParser
     attributes :url, :height, :width
   end
 
 
   class User < Objectify::DocumentParser
-    attr_accessor :session
-    attribute :id, 'id'
-    attributes :updated,
-      :title,
-      :total_results, # represents total number of albums
+    include Shared
+    attributes :total_results, # represents total number of albums
       :start_index,
       :items_per_page,
       :thumbnail
-    has_many :links, Objectify::Atom::Link, 'link'
     has_many :entries, :Album, 'entry'
-    has_one :content, PhotoUrl, 'media:content'
-    has_many :thumbnails, PhotoUrl, 'media:thumbnail'
-    namespaces :openSearch, :gphoto
-    flatten 'media:group'
 
     def albums
       entries
@@ -40,12 +67,22 @@ module RubyPicasa
   end
 
 
+  class RecentPhotos < User
+    has_many :entries, :Photo, 'entry'
+
+    def photos
+      entries
+    end
+
+    def albums
+      nil
+    end
+  end
+
+
   class Album < Objectify::DocumentParser
-    attr_accessor :session
-    attribute :id, 'id'
+    include Shared
     attributes :published,
-      :updated,
-      :title,
       :summary,
       :rights,
       :gphoto_id,
@@ -56,12 +93,7 @@ module RubyPicasa
       :start_index,
       :items_per_page,
       :allow_downloads
-    has_many :links, Objectify::Atom::Link, 'link'
     has_many :entries, :Photo, 'entry'
-    has_one 'content', PhotoUrl, 'media:content'
-    has_many 'thumbnails', PhotoUrl, 'media:thumbnail'
-    flatten 'media:group'
-    namespaces :openSearch, :gphoto, :media
 
     def public?
       rights == 'public'
@@ -89,10 +121,7 @@ module RubyPicasa
 
 
   class Photo < Objectify::DocumentParser
-    attribute :id, 'id'
     attributes :published,
-      :updated,
-      :title,
       :summary,
       :gphoto_id,
       :version, # can use to determine if need to update...
@@ -103,11 +132,8 @@ module RubyPicasa
       :description,
       :keywords,
       :credit
-    has_many 'links', Objectify::Atom::Link, 'link'
-    has_one 'content', PhotoUrl, 'media:content'
-    has_many 'thumbnails', PhotoUrl, 'media:thumbnail'
-    namespaces :gphoto, :media
-    flatten 'media:group'
+    has_one :content, PhotoUrl, 'media:content'
+    has_one :author, Objectify::Atom::Author, 'author'
 
     def url(thumb_name = nil)
       if thumb_name
