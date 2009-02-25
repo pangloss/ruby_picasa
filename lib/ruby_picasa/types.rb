@@ -41,15 +41,19 @@ module RubyPicasa
       end
     end
 
+    def load(options = {})
+      session.get_url(id, options)
+    end
+
     def next
       if link = link('next')
-        session.from_url(link.href)
+        session.get_url(link.href)
       end
     end
 
     def previous
       if link = link('previous')
-        session.from_url(link.href)
+        session.get_url(link.href)
       end
     end
   end
@@ -109,11 +113,6 @@ module RubyPicasa
       rights == 'private'
     end
 
-    def load(options = {})
-      session ||= parent.session
-      session.album(options.merge(:album_id => id))
-    end
-
     def photos(options = {})
       if entries.blank? and !@photos_requested
         @photos_requested = true
@@ -127,6 +126,7 @@ module RubyPicasa
 
 
   class Photo < Objectify::DocumentParser
+    include Shared
     attributes :published,
       :summary,
       :gphoto_id,
@@ -152,19 +152,6 @@ module RubyPicasa
 
 
   class Search < Album
-    def initialize(q, start_index = 1, max_results = 10)
-      raise "Incorect query type." unless q.is_a? String
-      @q = q
-      @start_index = start_index
-      @max_results = max_results
-      request = "http://#{ Picasa.host }#{ Picasa.path('all', :q => q, :start_index => start_index, :max_results => max_results) }"
-      xml = Net::HTTP.get(URI.parse(request))
-      super(xml)
-    end
-
-    def next_results
-      Search.new(@q, @start_index + @max_results, @max_results)
-    end
   end
 end
 

@@ -52,11 +52,6 @@ class Picasa
       p
     end
 
-    # This request does not require authentication.
-    def search(q, start_index = 1, max_results = 10)
-      Search.new(q, start_index, max_results)
-    end
-
     def host
       'picasaweb.google.com'
     end
@@ -92,9 +87,14 @@ class Picasa
     # 912, 1024, 1152, 1280, 1440, 1600
     # 
     def path(args = {})
-      path, options = 
+      path, options = parse_url(args)
       if path.nil?
-        path = ["/data/feed/api/user", CGI.escape(args[:user_id] || 'default')]
+        path = ["/data/feed/api"]
+        if args[:user_id] == 'all'
+          path += ["all"]
+        else
+          path += ["user", CGI.escape(args[:user_id] || 'default')]
+        end
         path += ['albumid', CGI.escape(args[:album_id])] if args[:album_id]
         path = path.join('/')
       end
@@ -119,10 +119,11 @@ class Picasa
       if url
         uri = URI.parse(url)
         path = uri.path
+        options = {}
         if uri.query
           uri.query.split('&').each do |query|
             k, v = query.split('=')
-            options[k] = v
+            options[k] = CGI.unescape(v)
           end
         end
         [path, options]
@@ -143,32 +144,42 @@ class Picasa
     http = Net::HTTP.new("www.google.com", 443)
     http.use_ssl = true
     response = http.get('/accounts/accounts/AuthSubSessionToken', auth_header)
-    @token = response.body.scan(/Token=(.*)/).first
-    if @token.nil?
-      raise PicasaTokenError, 'The request to upgrade to a session token failed.'
+    token = response.body.scan(/Token=(.*)/).flatten.compact.first
+    if token
+      @token = token
+    else
+      raise RubyPicasa::PicasaTokenError, 'The request to upgrade to a session token failed.'
     end
     @token
   end
 
   def user(user_id_or_url = 'default', options = {})
-    options[:user_id] = user_id_or_url
-    get(options)
+    get(options.merge(:user_id => user_id_or_url))
   end
 
   def album(album_id_or_url, options = {})
-    options[:album_id] = album_id_or_url
-    get(options)
+    get(options.merge(:album_id => album_id_or_url))
   end
 
-  def from_url(url, options = {})
-    options[:url] = url
-    get(options)
+  # This request does not require authentication.
+  def search(q, options = {})
+    h = {}
+    h[:max_results] = 10
+    h[:user_id] = 'all'
+    h[:kind] = 'photo'
+    # merge options over h, but merge q over options
+    get(h.merge(options).merge(:q => q))
+  end
+
+  def get_url(url, options = {})
+    get(options.merge(:url => url))
   end
 
   def recent_photos(user_id_or_url = 'default', options = {})
-    options[:user_id] = user_id
-    options[:recent_photos] = true
-    get(options)
+    h = {}
+    h[:user_id] = user_id_or_url
+    h[:recent_photos] = true
+    get(options.merge(h))
   end
 
   def album_by_title(title, options = {})
@@ -182,16 +193,15 @@ class Picasa
     http = Net::HTTP.new(Picasa.host, 80)
     path = Picasa.path(options)
     response = http.get(path, auth_header)
+    puts response.body
     if response.code =~ /20[01]/
       response.body
     end
   end
 
   def get(options = {})
-    with_cache(options) do
-      if xml = xml(options)
-        class_from_xml(xml)
-      end
+    with_cache(options) do |xml|
+      class_from_xml(xml)
     end
   end
 
@@ -207,11 +217,16 @@ class Picasa
 
   def with_cache(options)
     path = Picasa.path(options)
+    puts path
     @request_cache.delete(path) if options[:reload]
+    xml = nil
     if @request_cache.has_key? path
-      @request_cache[path]
+      xml = @request_cache[path]
     else
-      @request_cache[path] = yield
+      xml = @request_cache[path] = xml(options)
+    end
+    if xml
+      yield xml
     end
   end
 
@@ -224,6 +239,8 @@ class Picasa
       feed, entry = xml.search('//*[@term][@scheme]', xml.namespaces)
       feed_scheme = feed['term'] if feed
       entry_scheme = entry['term'] if entry
+      puts feed_scheme
+      puts entry_scheme
       r = case feed_scheme
       when /#user$/
         case entry_scheme
@@ -238,7 +255,12 @@ class Picasa
           Album.new(xml, self)
         end
       when /#photo$/
-        Photo.new(xml, self)
+        case entry_scheme
+        when /#photo$/
+          Search.new(xml, self)
+        when nil
+          Photo.new(xml, self)
+        end
       end
       if r
         r.session = self
