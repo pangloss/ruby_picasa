@@ -3,7 +3,7 @@ require 'objectify_xml/atom'
 require 'cgi'
 require 'net/http'
 require 'net/https'
-require 'ruby-picasa/types'
+require File.join(File.dirname(__FILE__), 'ruby_picasa/types')
 
 module RubyPicasa
   VERSION = '0.1.0'
@@ -27,7 +27,8 @@ class Picasa
       session = request_session ? '1' : '0'
       secure = secure ? '1' : '0'
       return_to_url = CGI.escape(return_to_url)
-      "http://www.google.com/accounts/AuthSubRequest?scope=http%3A%2F%2Fpicasaweb.google.com%2Fdata%2F&session=#{ session }&secure=#{ secure }&next=#{ return_to_url }"
+      url = 'http://www.google.com/accounts/AuthSubRequest'
+      "#{ url }?scope=http%3A%2F%2Fpicasaweb.google.com%2Fdata%2F&session=#{ session }&secure=#{ secure }&next=#{ return_to_url }"
     end
 
     # Takes a Rails request object and extracts the token from it. This would
