@@ -215,7 +215,6 @@ class Picasa
 
   def with_cache(options)
     path = Picasa.path(options)
-    puts path
     @request_cache.delete(path) if options[:reload]
     xml = nil
     if @request_cache.has_key? path
@@ -228,8 +227,8 @@ class Picasa
     end
   end
 
-  def class_from_xml(xml)
-    if xml = Nokogiri::XML.parse(xml)
+  def xml_data(xml)
+    if xml = Objectify::Xml.first_element(xml)
       # There is something wrong with Nokogiri xpath/css search with
       # namespaces. If you are searching a document that has namespaces,
       # it's impossible to match any elements in the root xmlns namespace.
@@ -237,8 +236,13 @@ class Picasa
       feed, entry = xml.search('//*[@term][@scheme]', xml.namespaces)
       feed_scheme = feed['term'] if feed
       entry_scheme = entry['term'] if entry
-      puts feed_scheme
-      puts entry_scheme
+      [xml, feed_scheme, entry_scheme]
+    end
+  end
+
+  def class_from_xml(xml)
+    xml, feed_scheme, entry_scheme = xml_data(xml)
+    if xml
       r = case feed_scheme
       when /#user$/
         case entry_scheme

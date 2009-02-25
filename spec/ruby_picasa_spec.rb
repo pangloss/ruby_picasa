@@ -4,7 +4,7 @@ class Picasa
   class << self
     public :parse_url
   end
-  public :auth_header, :with_cache, :class_from_xml
+  public :auth_header, :with_cache, :class_from_xml, :xml_data
 end
 
 describe 'Picasa class methods' do
@@ -64,6 +64,9 @@ describe 'Picasa class methods' do
         Picasa.path(:url => 'url', arg => '!value').should ==
           "url?#{ arg.to_s.dasherize }=%21value"
       end
+    end
+    it 'should ignore unknown options' do
+      Picasa.path(:url => 'place', :eggs => 'over_easy').should == 'place'
     end
   end
 
@@ -192,7 +195,7 @@ describe Picasa do
     end
 
     it 'should return nil' do
-      @p.album_by_title('aoeu').should be_nil
+      @p.album_by_title('zzz').should be_nil
     end
   end
 
@@ -230,6 +233,79 @@ describe Picasa do
     it 'should do nothing' do
       p = Picasa.new nil
       p.auth_header.should == { }
+    end
+  end
+
+  describe 'with_cache' do
+    it 'yields fresh xml' do
+      body 'fresh xml'
+      yielded = false
+      @p.with_cache(:url => 'place') do |xml|
+        yielded = true
+        xml.should == 'fresh xml'
+      end
+      yielded.should be_true
+    end
+
+    it 'yields cached xml' do
+      @p.instance_variable_get('@request_cache')['place'] = 'some xml'
+      yielded = false
+      @p.with_cache(:url => 'place') do |xml|
+        yielded = true
+        xml.should == 'some xml'
+      end
+      yielded.should be_true
+    end
+  end
+
+  describe 'xml_data' do
+    it 'should extract categories from the xml' do
+      xml, feed_schema, entry_schema = @p.xml_data(open_file('album.atom'))
+      xml.should be_an_instance_of(Nokogiri::XML::Element)
+      feed_schema.should == 'http://schemas.google.com/photos/2007#album'
+      entry_schema.should == 'http://schemas.google.com/photos/2007#photo'
+    end
+
+    it 'should handle nil' do
+      xml, feed_schema, entry_schema = @p.xml_data(nil)
+      xml.should be_nil
+    end
+
+    it 'should handle bad xml' do
+      xml, feed_schema, entry_schema = @p.xml_data('<entry>something went wrong')
+      xml.should_not be_nil
+      feed_schema.should be_nil
+      entry_schema.should be_nil
+    end
+  end
+
+  describe 'class_from_xml' do
+    before do
+      @user = 'http://schemas.google.com/photos/2007#user'
+      @album = 'http://schemas.google.com/photos/2007#album'
+      @photo = 'http://schemas.google.com/photos/2007#photo'
+    end
+
+    describe 'valid feed category types' do
+      def to_create(klass, feed, entry)
+        @object = mock('object', :session= => nil)
+        @p.expects(:xml_data).with(:xml).returns([:xml, feed, entry])
+        klass.expects(:new).with(:xml, @p).returns(@object)
+        @p.class_from_xml(:xml)
+      end
+      it('user album')  { to_create RubyPicasa::User, @user, @album }
+      it('user photo')  { to_create RubyPicasa::RecentPhotos, @user, @photo }
+      it('album nil')   { to_create RubyPicasa::Album, @album, nil }
+      it('album photo') { to_create RubyPicasa::Album, @album, @photo }
+      it('photo nil')   { to_create RubyPicasa::Photo, @photo, nil }
+      it('photo photo') { to_create RubyPicasa::Search, @photo, @photo }
+    end
+
+    it 'should raise an error for invalid feed category types' do
+      @p.expects(:xml_data).with(:xml).returns([:xml, @album, @user])
+      lambda do
+        @p.class_from_xml(:xml)
+      end.should raise_error(RubyPicasa::PicasaError)
     end
   end
 end
