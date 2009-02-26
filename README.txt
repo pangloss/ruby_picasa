@@ -46,6 +46,7 @@ Picasa data api feeds.
 == INSTALL:
 
 * gem install ruby-picasa
+* gem install pangloss-ruby-picasa --source http://gems.github.com
 
 == LICENSE:
 
