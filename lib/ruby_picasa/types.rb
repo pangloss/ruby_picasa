@@ -13,18 +13,22 @@
 # Define which namespaces you support in the class method #namespaces. Any
 # elements defined in other namespaces are automatically ignored.
 module RubyPicasa
-  module Shared
-    def self.included(target)
-      target.attribute :id, 'id'
-      target.attributes :updated,
-        :title
-      target.has_many :links, Objectify::Atom::Link, 'link'
-      target.has_one :content, PhotoUrl, 'media:content'
-      target.has_many :thumbnails, PhotoUrl, 'media:thumbnail'
-      target.has_one :author, Objectify::Atom::Author, 'author'
-      target.namespaces :openSearch, :gphoto, :media
-      target.flatten 'media:group'
-    end
+  class PhotoUrl < Objectify::ElementParser
+    attributes :url, :height, :width
+  end
+
+
+  class Base < Objectify::DocumentParser
+    namespaces :openSearch, :gphoto, :media
+    flatten 'media:group'
+
+    attribute :id, 'id'
+    attributes :updated, :title
+
+    has_many :links, Objectify::Atom::Link, 'link'
+    has_one :content, PhotoUrl, 'media:content'
+    has_many :thumbnails, PhotoUrl, 'media:thumbnail'
+    has_one :author, Objectify::Atom::Author, 'author'
 
     def link(rel)
       links.find { |l| l.rel == rel }
@@ -59,13 +63,8 @@ module RubyPicasa
     end
   end
 
-  class PhotoUrl < Objectify::ElementParser
-    attributes :url, :height, :width
-  end
 
-
-  class User < Objectify::DocumentParser
-    include Shared
+  class User < Base
     attributes :total_results, # represents total number of albums
       :start_index,
       :items_per_page,
@@ -89,8 +88,7 @@ module RubyPicasa
   end
 
 
-  class Album < Objectify::DocumentParser
-    include Shared
+  class Album < Base
     attributes :published,
       :summary,
       :rights,
@@ -124,8 +122,11 @@ module RubyPicasa
   end
 
 
-  class Photo < Objectify::DocumentParser
-    include Shared
+  class Search < Album
+  end
+
+
+  class Photo < Base
     attributes :published,
       :summary,
       :gphoto_id,
@@ -146,10 +147,6 @@ module RubyPicasa
         content.url
       end
     end
-  end
-
-
-  class Search < Album
   end
 end
 
