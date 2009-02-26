@@ -1,5 +1,4 @@
 require File.join(File.dirname(__FILE__), '../spec_helper')
-require 'pp'
 
 include RubyPicasa
 
@@ -9,19 +8,21 @@ describe 'a RubyPicasa document', :shared => true do
   end
 
   it 'should have an author' do
-    @object.author.should_not be_nil
-    @object.author.name.should == 'Liz'
-    @object.author.uri.should == 'http://picasaweb.google.com/liz'
+    unless @no_author
+      @object.author.should_not be_nil
+      @object.author.name.should == 'Liz'
+      @object.author.uri.should == 'http://picasaweb.google.com/liz'
+    end
   end
 
   it 'should get links by name' do
     @object.link('abc').should be_nil
-    @object.link('alternate').href.should_not be_nil
+    @object.link('self').href.should_not be_nil
   end
 
   it 'should do nothing for previous and next' do
-    @object.previous.should be_nil
-    @object.next.should be_nil
+    @object.previous.should be_nil if @object.link('previous').nil?
+    @object.next.should be_nil if @object.link('next').nil?
   end
 
   it 'should load' do
@@ -148,11 +149,35 @@ describe Album do
       end
     end
   end
-
 end
 
 describe Search do
-  it 'should request next'
-  it 'should request previous'
+  it_should_behave_like 'a RubyPicasa document'
+
+  before :all do
+    @xml = open_file('search.atom').read
+  end
+
+  before do
+    @no_author = true
+    @parent = mock('parent')
+    @object = @search = Search.new(@xml, @parent)
+    @search.session = mock('session')
+  end
+
+  it 'should have 1 entry' do
+    @search.entries.length.should == 1
+    @search.entries.first.should be_an_instance_of(Photo)
+  end
+
+  it 'should request next' do
+    @search.session.expects(:get_url).with('http://picasaweb.google.com/data/feed/api/all?q=puppy&start-index=3&max-results=1').returns(:result)
+    @search.next.should == :result
+  end
+
+  it 'should request previous' do
+    @search.session.expects(:get_url).with('http://picasaweb.google.com/data/feed/api/all?q=puppy&start-index=1&max-results=1').returns(:result)
+    @search.previous.should == :result
+  end
 end
 
