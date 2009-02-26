@@ -21,6 +21,7 @@ module RubyPicasa
       target.has_many :links, Objectify::Atom::Link, 'link'
       target.has_one :content, PhotoUrl, 'media:content'
       target.has_many :thumbnails, PhotoUrl, 'media:thumbnail'
+      target.has_one :author, Objectify::Atom::Author, 'author'
       target.namespaces :openSearch, :gphoto, :media
       target.flatten 'media:group'
     end
@@ -84,9 +85,7 @@ module RubyPicasa
       entries
     end
 
-    def albums
-      nil
-    end
+    undef albums
   end
 
 
@@ -116,8 +115,8 @@ module RubyPicasa
     def photos(options = {})
       if entries.blank? and !@photos_requested
         @photos_requested = true
-        session ||= parent.session
-        self.entries = session.photos(options.merge(:album_id => id))
+        self.session ||= parent.session
+        self.entries = session.album(id, options).entries if self.session
       else
         entries
       end
@@ -138,7 +137,6 @@ module RubyPicasa
       :description,
       :keywords,
       :credit
-    has_one :content, PhotoUrl, 'media:content'
     has_one :author, Objectify::Atom::Author, 'author'
 
     def url(thumb_name = nil)
