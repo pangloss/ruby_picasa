@@ -2,6 +2,14 @@ History.txt
 Manifest.txt
 README.txt
 Rakefile
-bin/ruby_picasa
+lib/ruby_picasa/types.rb
 lib/ruby_picasa.rb
-test/test_ruby_picasa.rb
+spec/ruby_picasa/types_spec.rb
+spec/ruby_picasa_spec.rb
+spec/sample/album.atom
+spec/sample/recent.atom
+spec/sample/search.atom
+spec/sample/user.atom
+spec/spec.opts
+spec/spec_helper.rb
+.autotest
