@@ -171,8 +171,20 @@ describe Album do
     it 'should have 3 thumbnails' do
       @photo.thumbnails.length.should == 3
       @photo.thumbnails.each do |t|
-        t.should be_an_instance_of(PhotoUrl)
+        t.should be_an_instance_of(ThumbnailUrl)
       end
+    end
+
+    it 'should have a default url' do
+      @photo.url.should == 'http://lh5.ggpht.com/liz/SKXR5BoXabI/AAAAAAAAAzs/tJQefyM4mFw/invisible_bike.jpg'
+    end
+
+    it 'should have thumbnail urls' do
+      @photo.url('s72').should == 'http://lh5.ggpht.com/liz/SKXR5BoXabI/AAAAAAAAAzs/tJQefyM4mFw/s72/invisible_bike.jpg'
+    end
+
+    it 'should have thumbnail info' do
+      @photo.thumbnail('s72').width.should == 72
     end
   end
 end

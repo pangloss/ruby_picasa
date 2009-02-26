@@ -18,6 +18,13 @@ module RubyPicasa
   end
 
 
+  class ThumbnailUrl < PhotoUrl
+    def thumb_name
+      url.scan(%r{/([^/]+)/[^/]+$}).flatten.compact.first
+    end
+  end
+
+
   class Base < Objectify::DocumentParser
     namespaces :openSearch, :gphoto, :media
     flatten 'media:group'
@@ -27,7 +34,7 @@ module RubyPicasa
 
     has_many :links, Objectify::Atom::Link, 'link'
     has_one :content, PhotoUrl, 'media:content'
-    has_many :thumbnails, PhotoUrl, 'media:thumbnail'
+    has_many :thumbnails, ThumbnailUrl, 'media:thumbnail'
     has_one :author, Objectify::Atom::Author, 'author'
 
     def link(rel)
@@ -142,10 +149,16 @@ module RubyPicasa
 
     def url(thumb_name = nil)
       if thumb_name
-        thumbnails.find { |t| t }.url
+        if thumb = thumbnail(thumb_name)
+          thumb.url
+        end
       else
         content.url
       end
+    end
+
+    def thumbnail(thumb_name)
+      thumbnails.find { |t| t.thumb_name == thumb_name }
     end
   end
 end

@@ -15,9 +15,17 @@ describe 'Picasa class methods' do
     url.should match(/session=1/)
   end
 
-  it 'should pluck the token from the request' do
-    request = mock('request', :params => { 'token' => 'abc' })
-    Picasa.token_from_request(request).should == 'abc'
+  describe 'token_from_request' do
+    it 'should pluck the token from the request' do
+      request = mock('request', :params => { 'token' => 'abc' })
+      Picasa.token_from_request(request).should == 'abc'
+    end
+    it 'should raise if no token is present' do
+      request = mock('request', :params => { })
+      lambda do
+        Picasa.token_from_request(request)
+      end.should raise_error(RubyPicasa::PicasaTokenError)
+    end
   end
 
   it 'should authorize a request' do
@@ -169,8 +177,8 @@ describe Picasa do
   end
 
   it 'should get recent photos' do
-    @p.expects(:get).with(:user_id => 'default', :recent_photos => true)
-    @p.recent_photos
+    @p.expects(:get).with(:user_id => 'default', :recent_photos => true, :max_results => 10)
+    @p.recent_photos :max_results => 10
   end
 
   describe 'album_by_title' do

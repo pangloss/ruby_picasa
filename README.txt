@@ -37,7 +37,7 @@ Picasa data api feeds.
 
   # 4. Display your photos
   image_tag @photo.url
-  image_tag @photo.url(160, :cropped)
+  image_tag @photo.url('160c') # Picasa thumbnail names are predefined
 
 == REQUIREMENTS:
 
