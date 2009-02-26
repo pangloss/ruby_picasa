@@ -78,6 +78,32 @@ describe User do
 end
 
 describe RecentPhotos do
+  it_should_behave_like 'a RubyPicasa document'
+
+  before :all do
+    @xml = open_file('recent.atom').read
+  end
+
+  before do
+    @parent = mock('parent')
+    @object = @album = RecentPhotos.new(@xml, @parent)
+    @album.session = mock('session')
+  end
+
+  it 'should have 1 photo' do
+    @album.photos.length.should == 1
+    @album.photos.first.should be_an_instance_of(Photo)
+  end
+
+  it 'should request next' do
+    @album.session.expects(:get_url).with('http://picasaweb.google.com/data/feed/api/user/liz?start-index=2&max-results=1&kind=photo').returns(:result)
+    @album.next.should == :result
+  end
+
+  it 'should not request previous on first page' do
+    @album.session.expects(:get_url).never
+    @album.previous.should be_nil
+  end
 end
 
 describe Album do

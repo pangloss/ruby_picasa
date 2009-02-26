@@ -176,6 +176,10 @@ class Picasa
   end
 
   def recent_photos(user_id_or_url = 'default', options = {})
+    if user_id_or_url.is_a?(Hash)
+      options = user_id_or_url
+      user_id_or_url = 'default'
+    end
     h = {}
     h[:user_id] = user_id_or_url
     h[:recent_photos] = true
