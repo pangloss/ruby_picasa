@@ -4,8 +4,8 @@
 
 == DESCRIPTION:
 
-Provides a set of simple method calls to get authorized to and access the
-Picasa data api feeds.
+Provides a super easy to use object layer for authenticating and accessing
+Picasa through their API.
 
 == FEATURES:
 
@@ -14,7 +14,7 @@ Picasa data api feeds.
 * Very easy to use API.
 * Allows access to both public and private User, Album and Photo data.
 * Uses Objectify::Xml to define the XML object-relational layer with a very
-  easy to understand DSL.
+  easy to understand DSL. See www.github.com/pangloss/objectify_xml
 
 == PROBLEMS:
 
