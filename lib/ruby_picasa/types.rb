@@ -37,6 +37,7 @@ module RubyPicasa
     has_many :thumbnails, ThumbnailUrl, 'media:thumbnail'
     has_one :author, Objectify::Atom::Author, 'author'
 
+    # Return the link object with the specified rel attribute value.
     def link(rel)
       links.find { |l| l.rel == rel }
     end
@@ -45,6 +46,7 @@ module RubyPicasa
       @session = session
     end
 
+    # Should return the Picasa instance that retrieved this data.
     def session
       if @session
         @session
@@ -53,16 +55,19 @@ module RubyPicasa
       end
     end
 
+    # Retrieves the data at the url of the current record.
     def load(options = {})
       session.get_url(id, options)
     end
 
+    # If the results are paginated, retrieve the next page.
     def next
       if link = link('next')
         session.get_url(link.href)
       end
     end
 
+    # If the results are paginated, retrieve the previous page.
     def previous
       if link = link('previous')
         session.get_url(link.href)
@@ -78,6 +83,7 @@ module RubyPicasa
       :thumbnail
     has_many :entries, :Album, 'entry'
 
+    # The current page of albums associated to the user.
     def albums
       entries
     end
@@ -87,6 +93,7 @@ module RubyPicasa
   class RecentPhotos < User
     has_many :entries, :Photo, 'entry'
 
+    # The current page of recently updated photos associated to the user.
     def photos
       entries
     end
@@ -109,14 +116,17 @@ module RubyPicasa
       :allow_downloads
     has_many :entries, :Photo, 'entry'
 
+    # True if this album's rights are set to public
     def public?
       rights == 'public'
     end
 
+    # True if this album's rights are set to private
     def private?
       rights == 'private'
     end
 
+    # The current page of photos in the album.
     def photos(options = {})
       if entries.blank? and !@photos_requested
         @photos_requested = true
@@ -130,6 +140,10 @@ module RubyPicasa
 
 
   class Search < Album
+    # The current page of photos matching the search.
+    def photos(options = {})
+      super
+    end
   end
 
 
@@ -147,6 +161,17 @@ module RubyPicasa
       :credit
     has_one :author, Objectify::Atom::Author, 'author'
 
+    # Thumbnail names are by image width in pixels. Sizes up to 160 may be
+    # either cropped (square) or uncropped:
+    #
+    #   cropped:        32c, 48c, 64c, 72c, 144c, 160c
+    #   uncropped:      32u, 48u, 64u, 72u, 144u, 160u
+    #
+    # The rest of the image sizes should be specified by the desired width
+    # alone. Widths up to 800px may be embedded on a webpage:
+    # 
+    #   embeddable:     200, 288, 320, 400, 512, 576, 640, 720, 800
+    #   not embeddable: 912, 1024, 1152, 1280, 1440, 1600
     def url(thumb_name = nil)
       if thumb_name
         if thumb = thumbnail(thumb_name)
@@ -157,6 +182,7 @@ module RubyPicasa
       end
     end
 
+    # See +url+ for possible image sizes
     def thumbnail(thumb_name)
       thumbnails.find { |t| t.thumb_name == thumb_name }
     end
