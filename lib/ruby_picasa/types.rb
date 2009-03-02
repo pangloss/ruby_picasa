@@ -2,29 +2,32 @@
 # about. If you care about them, please feel free to add support for them,
 # which should not be difficult.
 #
-# Plural attribute names will be treated as arrays unless the element name
-# in the xml document is already plural. (Convention seems to be to label
-# repeating elements in the singular.)
-#
-# If an attribute should be a non-trivial datatype, define the mapping from
-# the fully namespaced attribute name to the class you wish to use in the
-# class method #types.
-#
-# Define which namespaces you support in the class method #namespaces. Any
+# Declare which namespaces are supported with the namespaces method. Any
 # elements defined in other namespaces are automatically ignored.
 module RubyPicasa
+  # attributes :url, :height, :width
   class PhotoUrl < Objectify::ElementParser
     attributes :url, :height, :width
   end
 
 
   class ThumbnailUrl < PhotoUrl
+    # The name of the current thumbnail. For possible names, see Photo#url
     def thumb_name
       url.scan(%r{/([^/]+)/[^/]+$}).flatten.compact.first
     end
   end
 
 
+  # Base class for User, Photo and Album types, not used independently.
+  #
+  #   attribute :id, 'id'
+  #   attributes :updated, :title
+  #   
+  #   has_many :links, Objectify::Atom::Link, 'link'
+  #   has_one :content, PhotoUrl, 'media:content'
+  #   has_many :thumbnails, ThumbnailUrl, 'media:thumbnail'
+  #   has_one :author, Objectify::Atom::Author, 'author'
   class Base < Objectify::DocumentParser
     namespaces :openSearch, :gphoto, :media
     flatten 'media:group'
@@ -76,6 +79,13 @@ module RubyPicasa
   end
 
 
+  # Includes attributes and associations defined on Base, plus:
+  #
+  #   attributes :total_results, # represents total number of albums
+  #     :start_index,
+  #     :items_per_page,
+  #     :thumbnail
+  #   has_many :entries, :Album, 'entry'
   class User < Base
     attributes :total_results, # represents total number of albums
       :start_index,
@@ -90,6 +100,9 @@ module RubyPicasa
   end
 
 
+  # Includes attributes and associations defined on Base and User, plus:
+  #
+  #   has_many :entries, :Photo, 'entry'
   class RecentPhotos < User
     has_many :entries, :Photo, 'entry'
 
@@ -102,6 +115,20 @@ module RubyPicasa
   end
 
 
+  # Includes attributes and associations defined on Base, plus:
+  #
+  #   attributes :published,
+  #     :summary,
+  #     :rights,
+  #     :gphoto_id,
+  #     :name,
+  #     :access,
+  #     :numphotos, # number of pictures in this album
+  #     :total_results, # number of pictures matching this 'search'
+  #     :start_index,
+  #     :items_per_page,
+  #     :allow_downloads
+  #   has_many :entries, :Photo, 'entry'
   class Album < Base
     attributes :published,
       :summary,
@@ -147,6 +174,20 @@ module RubyPicasa
   end
 
 
+  # Includes attributes and associations defined on Base, plus:
+  #
+  #   attributes :published,
+  #     :summary,
+  #     :gphoto_id,
+  #     :version, # can use to determine if need to update...
+  #     :position,
+  #     :albumid, # useful from the recently updated feed for instance.
+  #     :width,
+  #     :height,
+  #     :description,
+  #     :keywords,
+  #     :credit
+  #   has_one :author, Objectify::Atom::Author, 'author'
   class Photo < Base
     attributes :published,
       :summary,
