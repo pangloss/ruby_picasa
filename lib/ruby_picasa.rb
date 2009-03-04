@@ -212,14 +212,16 @@ class Picasa
   end
 
   # Retrieve a RubyPicasa::User record including all user albums.
-  def user(user_id_or_url = 'default', options = {})
-    get(options.merge(:user_id => user_id_or_url))
+  def user(user_id_or_url = nil, options = {})
+    options = make_options(:user_id, user_id_or_url, options)
+    get(options)
   end
 
   # Retrieve a RubyPicasa::Album record. If you pass an id or a feed url it will
   # include all photos. If you pass an entry url, it will not include photos.
   def album(album_id_or_url, options = {})
-    get(options.merge(:album_id => album_id_or_url))
+    options = make_options(:album_id, album_id_or_url, options)
+    get(options)
   end
 
   # This request does not require authentication. Returns a RubyPicasa::Search
@@ -238,20 +240,16 @@ class Picasa
   # by Picasa. Any supported type of RubyPicasa resource can be requested with
   # this method.
   def get_url(url, options = {})
-    get(options.merge(:url => url))
+    options = make_options(:url, url, options)
+    get(options)
   end
 
   # Retrieve a RubyPicasa::RecentPhotos object, essentially a User object which
   # contains photos instead of albums.
-  def recent_photos(user_id_or_url = 'default', options = {})
-    if user_id_or_url.is_a?(Hash)
-      options = user_id_or_url
-      user_id_or_url = 'default'
-    end
-    h = {}
-    h[:user_id] = user_id_or_url
-    h[:recent_photos] = true
-    get(options.merge(h))
+  def recent_photos(user_id_or_url, options = {})
+    options = make_options(:user_id, user_id_or_url, options)
+    options[:recent_photos] = true
+    get(options)
   end
 
   # Retrieves the user's albums and finds the first one with a matching title.
@@ -274,6 +272,20 @@ class Picasa
   end
 
   private
+
+  # If the value parameter is a hash, treat it as the options hash, otherwise
+  # insert the value into the hash with the key specified.
+  #
+  # Uses merge to ensure that a new hash object is returned to prevent caller's
+  # has from accidentally being modified.
+  def make_options(key, value, options)
+    if value.is_a? Hash
+      {}.merge value
+    else
+      options ||= {}
+      options.merge(key => value)
+    end
+  end
 
   # Combines the cached xml request with the class_from_xml factory. See the
   # Picasa.path method for valid options.

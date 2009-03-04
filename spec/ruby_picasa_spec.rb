@@ -158,7 +158,7 @@ describe Picasa do
   end
 
   it 'should get the user' do
-    @p.expects(:get).with(:user_id => 'default')
+    @p.expects(:get).with(:user_id => nil)
     @p.user
   end
 
@@ -184,7 +184,7 @@ describe Picasa do
   end
 
   it 'should get recent photos' do
-    @p.expects(:get).with(:user_id => 'default', :recent_photos => true, :max_results => 10)
+    @p.expects(:get).with(:recent_photos => true, :max_results => 10)
     @p.recent_photos :max_results => 10
   end
 
