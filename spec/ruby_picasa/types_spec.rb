@@ -180,11 +180,11 @@ describe Album do
     end
 
     it 'should have thumbnail urls' do
-      @photo.url('s72').should == 'http://lh5.ggpht.com/liz/SKXR5BoXabI/AAAAAAAAAzs/tJQefyM4mFw/s72/invisible_bike.jpg'
+      @photo.url('72').should == 'http://lh5.ggpht.com/liz/SKXR5BoXabI/AAAAAAAAAzs/tJQefyM4mFw/s72/invisible_bike.jpg'
     end
 
     it 'should have thumbnail info' do
-      @photo.thumbnail('s72').width.should == 72
+      @photo.thumbnail('72').width.should == 72
     end
   end
 end

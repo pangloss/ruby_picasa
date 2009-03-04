@@ -12,9 +12,13 @@ module RubyPicasa
 
 
   class ThumbnailUrl < PhotoUrl
+
     # The name of the current thumbnail. For possible names, see Photo#url
     def thumb_name
-      url.scan(%r{/([^/]+)/[^/]+$}).flatten.compact.first
+      name = url.scan(%r{/s([^/]+)/[^/]+$}).flatten.compact.first
+      if name
+        name.sub(/-/, '')
+      end
     end
   end
 
@@ -193,6 +197,12 @@ module RubyPicasa
   #     :credit
   #   has_one :author, Objectify::Atom::Author, 'author'
   class Photo < Base
+    CROPPED = %w[ 32c 48c 64c 72c 144c 160c ]
+    UNCROPPED = %w[ 32u 48u 64u 72u 144u 160u 32 48 64 72 144 160 ]
+    MEDIUM = %w[ 200 288 320 400 512 576 640 720 800 ]
+    LARGE = %w[ 912 1024 1152 1280 1440 1600 ]
+    VALID = CROPPED + UNCROPPED + MEDIUM + LARGE
+
     attributes :published,
       :summary,
       :gphoto_id,
@@ -229,7 +239,16 @@ module RubyPicasa
 
     # See +url+ for possible image sizes
     def thumbnail(thumb_name)
-      thumbnails.find { |t| t.thumb_name == thumb_name }
+      raise PicasaError, 'Invalid thumbnail size' unless Photo::VALID.include?(thumb_name.to_s)
+      thumb = thumbnails.find { |t| t.thumb_name == thumb_name }
+      if thumb
+        thumb
+      elsif session
+        f = feed(:thumbsize => thumb_name)
+        if f
+          f.thumbnails.first
+        end
+      end
     end
   end
 end
