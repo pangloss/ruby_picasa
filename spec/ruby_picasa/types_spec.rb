@@ -25,9 +25,9 @@ describe 'a RubyPicasa document', :shared => true do
     @object.next.should be_nil if @object.link('next').nil?
   end
 
-  it 'should load' do
-    @object.session.expects(:get_url).with(@object.id, {})
-    @object.load
+  it 'should get the feed' do
+    @object.session.expects(:get_url).with(@object.id.gsub(/entry/, 'feed').gsub(/default/, 'liz'), {})
+    @object.feed
   end
 
   it 'should have links' do
@@ -137,7 +137,7 @@ describe Album do
     it 'should request photos if needed' do
       @album.entries = []
       new_album = mock('album', :entries => [:photo])
-      @album.session.expects(:album).with(@album.id, {}).returns(new_album)
+      @album.session.expects(:get_url).with(@album.link(/feed/).href, {}).returns(new_album)
       @album.photos.should == [:photo]
     end
   end

@@ -42,7 +42,7 @@ module RubyPicasa
 
     # Return the link object with the specified rel attribute value.
     def link(rel)
-      links.find { |l| l.rel == rel }
+      links.find { |l| rel === l.rel }
     end
 
     def session=(session)
@@ -58,9 +58,9 @@ module RubyPicasa
       end
     end
 
-    # Retrieves the data at the url of the current record.
-    def load(options = {})
-      session.get_url(id, options)
+    # Retrieves the data feed at the url of the current record.
+    def feed(options = {})
+      session.get_url(link('http://schemas.google.com/g/2005#feed').href, options)
     end
 
     # If the results are paginated, retrieve the next page.
@@ -158,7 +158,11 @@ module RubyPicasa
       if entries.blank? and !@photos_requested
         @photos_requested = true
         self.session ||= parent.session
-        self.entries = session.album(id, options).entries if self.session
+        if session and data = feed
+          self.entries = data.entries 
+        else
+          []
+        end
       else
         entries
       end
