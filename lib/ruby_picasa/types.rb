@@ -25,7 +25,8 @@ module RubyPicasa
 
   # Base class for User, Photo and Album types, not used independently.
   #
-  #   attribute :id, 'id'
+  #   attribute :id, 'gphoto:id'
+  #   attribute :feed_id, 'id'
   #   attributes :updated, :title
   #   
   #   has_many :links, Objectify::Atom::Link, 'link'
@@ -36,7 +37,8 @@ module RubyPicasa
     namespaces :openSearch, :gphoto, :media
     flatten 'media:group'
 
-    attribute :id, 'id'
+    attribute :id, 'gphoto:id'
+    attribute :feed_id, 'id'
     attributes :updated, :title
 
     has_many :links, Objectify::Atom::Link, 'link'
@@ -124,7 +126,6 @@ module RubyPicasa
   #   attributes :published,
   #     :summary,
   #     :rights,
-  #     :gphoto_id,
   #     :name,
   #     :access,
   #     :numphotos, # number of pictures in this album
@@ -137,7 +138,6 @@ module RubyPicasa
     attributes :published,
       :summary,
       :rights,
-      :gphoto_id,
       :name,
       :access,
       :numphotos, # number of pictures in this album
@@ -186,7 +186,6 @@ module RubyPicasa
   #
   #   attributes :published,
   #     :summary,
-  #     :gphoto_id,
   #     :version, # can use to determine if need to update...
   #     :position,
   #     :albumid, # useful from the recently updated feed for instance.
@@ -205,7 +204,6 @@ module RubyPicasa
 
     attributes :published,
       :summary,
-      :gphoto_id,
       :version, # can use to determine if need to update...
       :position,
       :albumid, # useful from the recently updated feed for instance.

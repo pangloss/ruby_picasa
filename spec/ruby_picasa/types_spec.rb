@@ -3,8 +3,8 @@ require File.join(File.dirname(__FILE__), '../spec_helper')
 include RubyPicasa
 
 describe 'a RubyPicasa document', :shared => true do
-  it 'should have an id' do
-    @object.id.should_not be_nil
+  it 'should have a feed_id' do
+    @object.feed_id.should_not be_nil
   end
 
   it 'should have an author' do
@@ -26,7 +26,9 @@ describe 'a RubyPicasa document', :shared => true do
   end
 
   it 'should get the feed' do
-    @object.session.expects(:get_url).with(@object.id.gsub(/entry/, 'feed').gsub(/default/, 'liz'), {})
+    @object.session.expects(:get_url).with(@object.feed_id.
+                                            gsub(/entry/, 'feed').
+                                            gsub(/default/, 'liz'), {})
     @object.feed
   end
 
@@ -119,6 +121,11 @@ describe Album do
     @album.session = mock('session')
   end
 
+  it 'should have a numeric id' do
+    @object.id.should_not be_nil
+    @object.id.to_s.should match(/\A\d+\Z/)
+  end
+
   it 'should have 1 entry' do
     @album.entries.length.should == 1
   end
@@ -173,6 +180,11 @@ describe Album do
       @photo.thumbnails.each do |t|
         t.should be_an_instance_of(ThumbnailUrl)
       end
+    end
+
+    it 'should have a numeric id' do
+      @object.id.should_not be_nil
+      @object.id.to_s.should match(/\A\d+\Z/)
     end
 
     it 'should have a default url' do
