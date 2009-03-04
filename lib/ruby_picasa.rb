@@ -15,20 +15,53 @@ module RubyPicasa
   end
 end
 
+# == Authorization
+#
+# RubyPicasa makes authorizing a Rails app easy. It is a two step process: 
+#
+# First redirect the user to the authorization url, if the user authorizes your
+# application, Picasa will redirect the user back to the url you specify (in
+# this case authorize_picasa_url). 
+#
+# Next, pass the Rails request object to the authorize_token method which will
+# make the api call to upgrade the token and if successful return an initialized
+# Picasa session object ready to use. The token object can be retrieved from the
+# token attribute.
+#
+#   class PicasaController < ApplicationController
+#     def request_authorization
+#       redirect_to Picasa.authorization_url(authorize_picasa_url)
+#     end
+#
+#     def authorize
+#       if Picasa.token_in_request?(request)
+#         begin
+#           picasa = Picasa.authorize_request(request)
+#           current_user.picasa_token = picasa.token
+#           current_user.save
+#           flash[:notice] = 'Picasa authorization complete'
+#           redirect_to picasa_path
+#         rescue PicasaTokenError => e
+#           # 
+#           @error = e.message
+#           render
+#         end
+#       end
+#     end
+#   end
+#
 class Picasa
-  include RubyPicasa
-
   class << self
     # The user must be redirected to this address to authorize the application
     # to access their Picasa account. The token_from_request and
     # authorize_request methods can be used to handle the resulting redirect
     # from Picasa.
-    def authorization_url(return_to_url, request_session = true, secure = false)
+    def authorization_url(return_to_url, request_session = true, secure = false, authsub_url = nil)
       session = request_session ? '1' : '0'
       secure = secure ? '1' : '0'
       return_to_url = CGI.escape(return_to_url)
-      url = 'http://www.google.com/accounts/AuthSubRequest'
-      "#{ url }?scope=http%3A%2F%2Fpicasaweb.google.com%2Fdata%2F&session=#{ session }&secure=#{ secure }&next=#{ return_to_url }"
+      url = authsub_url || 'http://www.google.com/accounts/AuthSubRequest'
+      "#{ url }?scope=http%3A%2F%2F#{ host }%2Fdata%2F&session=#{ session }&secure=#{ secure }&next=#{ return_to_url }"
     end
 
     # Takes a Rails request object and extracts the token from it. This would
@@ -38,8 +71,12 @@ class Picasa
       if token = request.params['token']
         return token
       else
-        raise PicasaTokenError, 'No Picasa authorization token was found.'
+        raise RubyPicasa::PicasaTokenError, 'No Picasa authorization token was found.'
       end
+    end
+
+    def token_in_request?(request)
+      request.params['token']
     end
 
     # Takes a Rails request object as in token_from_request, then makes the
@@ -52,10 +89,20 @@ class Picasa
       p
     end
 
+    # The url to make requests to without the protocol or path.
     def host
-      'picasaweb.google.com'
+      @host ||= 'picasaweb.google.com'
     end
 
+    # In the unlikely event that you need to access this api on a different url,
+    # you can set it here. It defaults to picasaweb.google.com
+    def host=(h)
+      @host = h
+    end
+
+    # A simple test used to determine if a given resource id is it's full
+    # identifier url. This is not intended to be a general purpose method as the
+    # test is just a check for the http/https protocol prefix.
     def is_url?(path)
       path.to_s =~ %r{\Ahttps?://}
     end
@@ -99,6 +146,12 @@ class Picasa
         path = path.join('/')
       end
       options['kind'] = 'photo' if args[:recent_photos] or args[:album_id]
+      if args[:thumbsize] and not args[:thumbsize].split(/,/).all? { |s| RubyPicasa::Photo::VALID.include?(s) }
+        raise RubyPicasa::PicasaError, 'Invalid thumbsize.'
+      end
+      if args[:imgmax] and not RubyPicasa::Photo::VALID.include?(args[:imgmax])
+        raise RubyPicasa::PicasaError, 'Invalid imgmax.'
+      end
       [:max_results, :start_index, :tag, :q, :kind,
        :access, :thumbsize, :imgmax, :bbox, :l].each do |arg|
         options[arg.to_s.dasherize] = args[arg] if args[arg]
@@ -112,6 +165,8 @@ class Picasa
 
     private
 
+    # Extract the path and a hash of key/value pairs from a given url with
+    # optional query string.
     def parse_url(args)
       url = args[:url]
       url ||= args[:user_id] if is_url?(args[:user_id]) 
@@ -133,6 +188,7 @@ class Picasa
     end
   end
 
+  # The AuthSub token currently in use.
   attr_reader :token
 
   def initialize(token)
@@ -140,6 +196,8 @@ class Picasa
     @request_cache = {}
   end
 
+  # Attempt to upgrade the current AuthSub token to a permanent one. This only
+  # works if the Picasa session is initialized with a single use token.
   def authorize_token!
     http = Net::HTTP.new("www.google.com", 443)
     http.use_ssl = true
@@ -153,15 +211,20 @@ class Picasa
     @token
   end
 
+  # Retrieve a RubyPicasa::User record including all user albums.
   def user(user_id_or_url = 'default', options = {})
     get(options.merge(:user_id => user_id_or_url))
   end
 
+  # Retrieve a RubyPicasa::Album record. If you pass an id or a feed url it will
+  # include all photos. If you pass an entry url, it will not include photos.
   def album(album_id_or_url, options = {})
     get(options.merge(:album_id => album_id_or_url))
   end
 
-  # This request does not require authentication.
+  # This request does not require authentication. Returns a RubyPicasa::Search
+  # object containing the first 10 matches. You can call #next and #previous to
+  # navigate the paginated results on the Search object.
   def search(q, options = {})
     h = {}
     h[:max_results] = 10
@@ -171,10 +234,15 @@ class Picasa
     get(h.merge(options).merge(:q => q))
   end
 
+  # Retrieve a RubyPicasa object determined by the type of xml results returned
+  # by Picasa. Any supported type of RubyPicasa resource can be requested with
+  # this method.
   def get_url(url, options = {})
     get(options.merge(:url => url))
   end
 
+  # Retrieve a RubyPicasa::RecentPhotos object, essentially a User object which
+  # contains photos instead of albums.
   def recent_photos(user_id_or_url = 'default', options = {})
     if user_id_or_url.is_a?(Hash)
       options = user_id_or_url
@@ -186,12 +254,16 @@ class Picasa
     get(options.merge(h))
   end
 
+  # Retrieves the user's albums and finds the first one with a matching title.
+  # Returns a RubyPicasa::Album object.
   def album_by_title(title, options = {})
     if a = user.albums.find { |a| title === a.title }
       a.load options
     end
   end
 
+  # Returns the raw xml from Picasa. See the Picasa.path method for valid
+  # options.
   def xml(options = {})
     http = Net::HTTP.new(Picasa.host, 80)
     path = Picasa.path(options)
@@ -201,14 +273,17 @@ class Picasa
     end
   end
 
+  private
+
+  # Combines the cached xml request with the class_from_xml factory. See the
+  # Picasa.path method for valid options.
   def get(options = {})
     with_cache(options) do |xml|
       class_from_xml(xml)
     end
   end
 
-  private
-
+  # Returns the header data needed to make AuthSub requests.
   def auth_header
     if token
       { "Authorization" => %{AuthSub token="#{ token }"} }
@@ -217,6 +292,7 @@ class Picasa
     end
   end
 
+  # Caches the raw xml returned from the API. Keyed on request url.
   def with_cache(options)
     path = Picasa.path(options)
     @request_cache.delete(path) if options[:reload]
@@ -231,6 +307,10 @@ class Picasa
     end
   end
 
+  # Returns the first xml element in the document (see
+  # Objectify::Xml.first_element) with the xml data types of the feed and first entry
+  # element in the document, used to determine which RubyPicasa object should
+  # be initialized to handle the data.
   def xml_data(xml)
     if xml = Objectify::Xml.first_element(xml)
       # There is something wrong with Nokogiri xpath/css search with
@@ -244,6 +324,8 @@ class Picasa
     end
   end
 
+  # Initialize the correct RubyPicasa object depending on the type of feed and
+  # entries in the document.
   def class_from_xml(xml)
     xml, feed_scheme, entry_scheme = xml_data(xml)
     if xml
@@ -251,28 +333,28 @@ class Picasa
       when /#user$/
         case entry_scheme
         when /#album$/
-          User.new(xml, self)
+          RubyPicasa::User.new(xml, self)
         when /#photo$/
-          RecentPhotos.new(xml, self)
+          RubyPicasa::RecentPhotos.new(xml, self)
         end
       when /#album$/
         case entry_scheme
         when nil, /#photo$/
-          Album.new(xml, self)
+          RubyPicasa::Album.new(xml, self)
         end
       when /#photo$/
         case entry_scheme
         when /#photo$/
-          Search.new(xml, self)
+          RubyPicasa::Search.new(xml, self)
         when nil
-          Photo.new(xml, self)
+          RubyPicasa::Photo.new(xml, self)
         end
       end
       if r
         r.session = self
         r
       else
-        raise PicasaError, "Unknown feed type\n feed:  #{ feed_scheme }\n entry: #{ entry_scheme }"
+        raise RubyPicasa::PicasaError, "Unknown feed type\n feed:  #{ feed_scheme }\n entry: #{ entry_scheme }"
       end
     end
   end

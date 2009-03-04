@@ -42,12 +42,6 @@ describe 'Picasa class methods' do
     Picasa.is_url?('12323412341').should_not be_true
   end
 
-  it 'should recognize relative urls?' do
-    pending 'not currently needed'
-    Picasa.is_url?('something.com/else').should be_true
-    Picasa.is_url?('/else').should be_true
-  end
-
   describe 'path' do
     it 'should use parse_url and add options' do
       Picasa.expects(:parse_url).with({}).returns(['url', {'a' => 'b'}])
@@ -67,10 +61,23 @@ describe 'Picasa class methods' do
         "/data/feed/api/all"
     end
     [ :max_results, :start_index, :tag, :q, :kind,
-      :access, :thumbsize, :imgmax, :bbox, :l].each do |arg|
+      :access, :bbox, :l].each do |arg|
       it "should add #{ arg } to options" do
         Picasa.path(:url => 'url', arg => '!value').should ==
           "url?#{ arg.to_s.dasherize }=%21value"
+      end
+    end
+    [ :imgmax, :thumbsize ].each do |arg|
+      it "should raise PicasaError with invalid #{ arg } option" do
+        lambda do
+          Picasa.path(:url => 'url', arg => 'invalid')
+        end.should raise_error(RubyPicasa::PicasaError)
+      end
+    end
+    [ :imgmax, :thumbsize ].each do |arg|
+      it "should add #{ arg } to options" do
+        Picasa.path(:url => 'url', arg => '72').should ==
+          "url?#{ arg.to_s.dasherize }=72"
       end
     end
     it 'should ignore unknown options' do
@@ -223,13 +230,13 @@ describe Picasa do
     it 'should call class_from_xml if with_cache yields' do
       @p.expects(:with_cache).with({}).yields(:xml).returns(:result)
       @p.expects(:class_from_xml).with(:xml)
-      @p.get.should == :result
+      @p.send(:get).should == :result
     end
 
     it 'should do nothing if with_cache does not yield' do
       @p.expects(:with_cache).with({}) # doesn't yield
       @p.expects(:class_from_xml).never
-      @p.get.should be_nil
+      @p.send(:get).should be_nil
     end
   end
 
