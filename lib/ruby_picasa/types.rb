@@ -82,6 +82,61 @@ module RubyPicasa
         session.get_url(link.href)
       end
     end
+
+    # Thumbnail names are by image width in pixels. Sizes up to 160 may be
+    # either cropped (square) or uncropped:
+    #
+    #   cropped:        32c, 48c, 64c, 72c, 144c, 160c
+    #   uncropped:      32u, 48u, 64u, 72u, 144u, 160u
+    #
+    # The rest of the image sizes should be specified by the desired width
+    # alone. Widths up to 800px may be embedded on a webpage:
+    # 
+    #   embeddable:     200, 288, 320, 400, 512, 576, 640, 720, 800
+    #   not embeddable: 912, 1024, 1152, 1280, 1440, 1600
+    #
+    # if a options is set to true or a hash is given, the width and height of
+    # the image will be added to the hash and returned. Useful for passing to
+    # the rails image_tag helper as follows:
+    #
+    #   image_tag(*image.url('72c', { :class => 'thumb' }))
+    #   
+    # which results in:
+    #
+    #   <img href="..." class="thumb" width="72" height="72">
+    #
+    def url(thumb_name = nil, options = nil)
+      url = nil
+      options = {} if options and not options.is_a? Hash
+      if thumb_name
+        if thumb = thumbnail(thumb_name)
+          url = thumb.url
+          options = { :width => thumb.width, :height => thumb.height }.merge(options) if options
+        end
+      else
+        url = content.url
+        options = { :width => content.width, :height => content.height }.merge(options) if options
+      end
+      if options
+        [url, options]
+      else
+        url
+      end
+    end
+
+    # See +url+ for possible image sizes
+    def thumbnail(thumb_name)
+      raise PicasaError, 'Invalid thumbnail size' unless Photo::VALID.include?(thumb_name.to_s)
+      thumb = thumbnails.find { |t| t.thumb_name == thumb_name }
+      if thumb
+        thumb
+      elsif session
+        f = feed(:thumbsize => thumb_name)
+        if f
+          f.thumbnails.first
+        end
+      end
+    end
   end
 
 
@@ -214,40 +269,6 @@ module RubyPicasa
       :credit
     has_one :author, Objectify::Atom::Author, 'author'
 
-    # Thumbnail names are by image width in pixels. Sizes up to 160 may be
-    # either cropped (square) or uncropped:
-    #
-    #   cropped:        32c, 48c, 64c, 72c, 144c, 160c
-    #   uncropped:      32u, 48u, 64u, 72u, 144u, 160u
-    #
-    # The rest of the image sizes should be specified by the desired width
-    # alone. Widths up to 800px may be embedded on a webpage:
-    # 
-    #   embeddable:     200, 288, 320, 400, 512, 576, 640, 720, 800
-    #   not embeddable: 912, 1024, 1152, 1280, 1440, 1600
-    def url(thumb_name = nil)
-      if thumb_name
-        if thumb = thumbnail(thumb_name)
-          thumb.url
-        end
-      else
-        content.url
-      end
-    end
-
-    # See +url+ for possible image sizes
-    def thumbnail(thumb_name)
-      raise PicasaError, 'Invalid thumbnail size' unless Photo::VALID.include?(thumb_name.to_s)
-      thumb = thumbnails.find { |t| t.thumb_name == thumb_name }
-      if thumb
-        thumb
-      elsif session
-        f = feed(:thumbsize => thumb_name)
-        if f
-          f.thumbnails.first
-        end
-      end
-    end
   end
 end
 
