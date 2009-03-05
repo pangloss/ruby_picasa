@@ -147,6 +147,21 @@ describe Album do
       @album.session.expects(:get_url).with(@album.link(/feed/).href, {}).returns(new_album)
       @album.photos.should == [:photo]
     end
+
+    it 'should not request photos twice if there are none' do
+      @album.entries = []
+      new_album = mock('album', :entries => [])
+      @album.session.expects(:get_url).with(@album.link(/feed/).href, {}).times(1).returns(new_album)
+      @album.photos.should == []
+      # note that mocks are set to accept only one get_url request
+      @album.photos.should == []
+    end
+
+    it 'should not request photos if there is no session' do
+      @album.entries = []
+      @album.expects(:session).returns(nil)
+      @album.photos.should == []
+    end
   end
 
   it 'should be public' do
@@ -195,8 +210,51 @@ describe Album do
       @photo.url('72').should == 'http://lh5.ggpht.com/liz/SKXR5BoXabI/AAAAAAAAAzs/tJQefyM4mFw/s72/invisible_bike.jpg'
     end
 
+    it 'should have a default url with options true' do
+      @photo.url(nil, true).should == [
+        'http://lh5.ggpht.com/liz/SKXR5BoXabI/AAAAAAAAAzs/tJQefyM4mFw/invisible_bike.jpg',
+        { :width => 410, :height => 295 }
+      ]
+    end
+
+    it 'should have a default url with options' do
+      @photo.url(nil, :id => 'p').should == [
+        'http://lh5.ggpht.com/liz/SKXR5BoXabI/AAAAAAAAAzs/tJQefyM4mFw/invisible_bike.jpg',
+        { :width => 410, :height => 295, :id => 'p' }
+      ]
+    end
+
+    it 'should have a default url with options first' do
+      @photo.url(:id => 'p').should == [
+        'http://lh5.ggpht.com/liz/SKXR5BoXabI/AAAAAAAAAzs/tJQefyM4mFw/invisible_bike.jpg',
+        { :width => 410, :height => 295, :id => 'p' }
+      ]
+    end
+
+    it 'should have thumbnail urls with options' do
+      @photo.url('72', {:class => 'x'}).should == [
+        'http://lh5.ggpht.com/liz/SKXR5BoXabI/AAAAAAAAAzs/tJQefyM4mFw/s72/invisible_bike.jpg',
+        { :width => 72, :height => 52, :class => 'x' }
+      ]
+    end
+
     it 'should have thumbnail info' do
       @photo.thumbnail('72').width.should == 72
+    end
+
+    it 'should retrieve valid thumbnail info' do
+      photo = mock('photo')
+      thumb = mock('thumb')
+      photo.expects(:thumbnails).returns([thumb])
+      @photo.session.expects(:get_url).with('http://picasaweb.google.com/data/feed/api/user/liz/albumid/5228155363249705041/photoid/5234820919508560306',
+                                      {:thumbsize => '32c'}).returns(photo)
+      @photo.thumbnail('32c').should == thumb
+    end
+
+    it 'should retrieve valid thumbnail info and handle not found' do
+      @photo.session.expects(:get_url).with('http://picasaweb.google.com/data/feed/api/user/liz/albumid/5228155363249705041/photoid/5234820919508560306',
+                                      {:thumbsize => '32c'}).returns(nil)
+      @photo.thumbnail('32c').should be_nil
     end
   end
 end
@@ -218,6 +276,10 @@ describe Search do
   it 'should have 1 entry' do
     @search.entries.length.should == 1
     @search.entries.first.should be_an_instance_of(Photo)
+  end
+
+  it 'should alias entries to photos' do
+    @search.photos.should == @search.entries
   end
 
   it 'should request next' do

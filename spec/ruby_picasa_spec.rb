@@ -15,6 +15,18 @@ describe 'Picasa class methods' do
     url.should match(/session=1/)
   end
 
+  describe 'token_in_request?' do
+    it 'should be nil if no token' do
+      request = mock('request', :params => { })
+      Picasa.token_in_request?(request).should be_nil
+    end
+
+    it 'should not be nil if there is a token' do
+      request = mock('request', :params => { 'token' => 'abc' })
+      Picasa.token_in_request?(request).should_not be_nil
+    end
+  end
+
   describe 'token_from_request' do
     it 'should pluck the token from the request' do
       request = mock('request', :params => { 'token' => 'abc' })
@@ -40,6 +52,11 @@ describe 'Picasa class methods' do
     Picasa.is_url?('http://something.com').should be_true
     Picasa.is_url?('https://something.com').should be_true
     Picasa.is_url?('12323412341').should_not be_true
+  end
+
+  it 'should allow host change' do
+    Picasa.host = 'abc'
+    Picasa.host.should == 'abc'
   end
 
   describe 'path' do

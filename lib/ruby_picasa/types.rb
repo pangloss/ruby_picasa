@@ -107,6 +107,10 @@ module RubyPicasa
     #
     def url(thumb_name = nil, options = nil)
       url = nil
+      if thumb_name.is_a? Hash
+        options = thumb_name
+        thumb_name = nil
+      end
       options = {} if options and not options.is_a? Hash
       if thumb_name
         if thumb = thumbnail(thumb_name)
@@ -216,7 +220,6 @@ module RubyPicasa
     def photos(options = {})
       if entries.blank? and !@photos_requested
         @photos_requested = true
-        self.session ||= parent.session
         if session and data = feed
           self.entries = data.entries 
         else
