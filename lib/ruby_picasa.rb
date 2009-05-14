@@ -68,7 +68,7 @@ class Picasa
     # happen in the action that is pointed to by the return_to_url argument
     # when the authorization_url is created.
     def token_from_request(request)
-      if token = request.params['token']
+      if token = request.parameters['token']
         return token
       else
         raise RubyPicasa::PicasaTokenError, 'No Picasa authorization token was found.'
@@ -76,7 +76,7 @@ class Picasa
     end
 
     def token_in_request?(request)
-      request.params['token']
+      request.parameters['token']
     end
 
     # Takes a Rails request object as in token_from_request, then makes the

@@ -17,23 +17,23 @@ describe 'Picasa class methods' do
 
   describe 'token_in_request?' do
     it 'should be nil if no token' do
-      request = mock('request', :params => { })
+      request = mock('request', :parameters => { })
       Picasa.token_in_request?(request).should be_nil
     end
 
     it 'should not be nil if there is a token' do
-      request = mock('request', :params => { 'token' => 'abc' })
+      request = mock('request', :parameters => { 'token' => 'abc' })
       Picasa.token_in_request?(request).should_not be_nil
     end
   end
 
   describe 'token_from_request' do
     it 'should pluck the token from the request' do
-      request = mock('request', :params => { 'token' => 'abc' })
+      request = mock('request', :parameters => { 'token' => 'abc' })
       Picasa.token_from_request(request).should == 'abc'
     end
     it 'should raise if no token is present' do
-      request = mock('request', :params => { })
+      request = mock('request', :parameters => { })
       lambda do
         Picasa.token_from_request(request)
       end.should raise_error(RubyPicasa::PicasaTokenError)
