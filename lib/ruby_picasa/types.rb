@@ -1,9 +1,3 @@
-# Note that in all defined classes I'm ignoring values I don't happen to care
-# about. If you care about them, please feel free to add support for them,
-# which should not be difficult.
-#
-# Declare which namespaces are supported with the namespaces method. Any
-# elements defined in other namespaces are automatically ignored.
 module RubyPicasa
   # attributes :url, :height, :width
   class PhotoUrl < Objectify::ElementParser
@@ -23,6 +17,11 @@ module RubyPicasa
   end
 
 
+  # Note that in all defined classes I'm ignoring values I don't happen to need
+  # or know about. Please do add support for the ones I've missed.  Be sure to
+  # declare which namespaces are supported with the namespaces method.  Any
+  # elements defined in other namespaces are automatically ignored.
+  #
   # Base class for User, Photo and Album types, not used independently.
   #
   #   attribute :id, 'gphoto:id'
@@ -46,7 +45,8 @@ module RubyPicasa
     has_many :thumbnails, ThumbnailUrl, 'media:thumbnail'
     has_one :author, Objectify::Atom::Author, 'author'
 
-    # Return the link object with the specified rel attribute value.
+    # Return the link object with a matching rel attribute value. +rel+ can be
+    # either a fully matching string or a regular expression.
     def link(rel)
       links.find { |l| rel === l.rel }
     end
@@ -252,6 +252,16 @@ module RubyPicasa
   #     :description,
   #     :keywords,
   #     :credit
+  #   attribute :unique_id, 'exif:imageUniqueID'
+  #   attribute :exif_distance, 'exif:distance'
+  #   attribute :exif_exposure, 'exif:exposure'
+  #   attribute :exif_flash, 'exif:flash'
+  #   attribute :exif_focallength, 'exif:focallength'
+  #   attribute :exif_fstop, 'exif:fstop'
+  #   attribute :exif_iso, 'exif:iso'
+  #   attribute :exif_make, 'exif:make'
+  #   attribute :exif_model, 'exif:model'
+  #   attribute :exif_time, 'exif:time'
   #   has_one :author, Objectify::Atom::Author, 'author'
   class Photo < Base
     CROPPED = %w[ 32c 48c 64c 72c 144c 160c ]
@@ -259,6 +269,8 @@ module RubyPicasa
     MEDIUM = %w[ 200 288 320 400 512 576 640 720 800 ]
     LARGE = %w[ 912 1024 1152 1280 1440 1600 ]
     VALID = CROPPED + UNCROPPED + MEDIUM + LARGE
+
+    namespace :exif
 
     attributes :published,
       :summary,
@@ -270,6 +282,19 @@ module RubyPicasa
       :description,
       :keywords,
       :credit
+
+    flatten 'exif:tags'
+    attribute :unique_id, 'exif:imageUniqueID'
+    attribute :exif_distance, 'exif:distance'
+    attribute :exif_exposure, 'exif:exposure'
+    attribute :exif_flash, 'exif:flash'
+    attribute :exif_focallength, 'exif:focallength'
+    attribute :exif_fstop, 'exif:fstop'
+    attribute :exif_iso, 'exif:iso'
+    attribute :exif_make, 'exif:make'
+    attribute :exif_model, 'exif:model'
+    attribute :exif_time, 'exif:time'
+
     has_one :author, Objectify::Atom::Author, 'author'
 
   end
