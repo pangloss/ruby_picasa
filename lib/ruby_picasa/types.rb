@@ -153,7 +153,7 @@ module RubyPicasa
   #   has_many :entries, :Album, 'entry'
   class User < Base
     attributes :total_results, # represents total number of albums
-      :start_index,
+    :start_index,
       :items_per_page,
       :thumbnail
     has_many :entries, :Album, 'entry'
@@ -200,8 +200,8 @@ module RubyPicasa
       :name,
       :access,
       :numphotos, # number of pictures in this album
-      :total_results, # number of pictures matching this 'search'
-      :start_index,
+    :total_results, # number of pictures matching this 'search'
+    :start_index,
       :items_per_page,
       :allow_downloads
     has_many :entries, :Photo, 'entry'
@@ -239,7 +239,6 @@ module RubyPicasa
     end
   end
 
-
   # Includes attributes and associations defined on Base, plus:
   #
   #   attributes :published,
@@ -270,7 +269,23 @@ module RubyPicasa
     LARGE = %w[ 912 1024 1152 1280 1440 1600 ]
     VALID = CROPPED + UNCROPPED + MEDIUM + LARGE
 
-    namespace :exif
+    class Point < Objectify::DocumentParser
+      namespaces 'gml'
+      attribute :pos, 'gml:pos'
+      def lat
+        @lat ||= pos.split(" ").first.to_f
+      end
+
+      def lng
+        @lng ||= pos.split(" ").last.to_f
+      end
+
+      def coords
+        [lat, lng]
+      end
+    end
+
+    namespaces 'exif', 'georss', 'gml'
 
     attributes :published,
       :summary,
@@ -295,8 +310,12 @@ module RubyPicasa
     attribute :exif_model, 'exif:model'
     attribute :exif_time, 'exif:time'
 
+    flatten 'georss:where'
+    
+    has_one :point, RubyPicasa::Photo::Point, 'gml:Point'
     has_one :author, Objectify::Atom::Author, 'author'
 
   end
+
 end
 

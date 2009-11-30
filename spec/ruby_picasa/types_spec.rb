@@ -293,3 +293,36 @@ describe Search do
   end
 end
 
+describe "Search by bounding box" do
+  before :all do
+    @xml = open_file('search-geo-1-result.atom').read
+  end
+
+  before do
+    @no_author = true
+    @parent = mock('parent')
+    @object = @search = Search.new(@xml, @parent)
+    @search.session = mock('session')
+  end
+
+  it 'should have 1 entries' do
+    @search.entries.length.should == 1
+    @search.entries.first.should be_an_instance_of(Photo)
+  end
+
+  it 'should have exif info' do
+    @search.entries.first.exif_flash.should == true
+    @search.entries.first.exif_fstop.should == 2.8
+    @search.entries.first.exif_make.should == 'Canon'
+    @search.entries.first.unique_id.should == '358e5f03385d40c41dfdf3ad9a80868c'
+  end
+
+  it 'should have geo info' do
+    @search.entries.first.point.should_not be_nil
+    @search.entries.first.point.lat.should be_an_instance_of Float
+    @search.entries.first.point.lat.should_not eql(0)
+    @search.entries.first.point.lng.should be_an_instance_of Float
+    @search.entries.first.point.lng.should_not eql(0)
+  end
+end
+
