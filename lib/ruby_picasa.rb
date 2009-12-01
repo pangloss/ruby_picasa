@@ -351,6 +351,8 @@ class Picasa
           RubyPicasa::User.new(xml, self)
         when /#photo$/
           RubyPicasa::RecentPhotos.new(xml, self)
+        when nil
+          RubyPicasa::Search.new(xml, self)
         end
       when /#album$/
         case entry_scheme
