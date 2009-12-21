@@ -149,9 +149,11 @@ module RubyPicasa
   #   attributes :total_results, # represents total number of albums
   #     :start_index,
   #     :items_per_page,
-  #     :thumbnail
+  #     :thumbnail,
+  #     :user # userID
   #   has_many :entries, :Album, 'entry'
   class User < Base
+    attribute :user, 'gphoto:user'
     attributes :total_results, # represents total number of albums
     :start_index,
       :items_per_page,

@@ -77,7 +77,10 @@ describe User do
     @user.albums.length.should == 1
     @user.albums.first.should be_an_instance_of(Album)
   end
-
+  
+  it 'should have a user' do
+    @user.user.should_not be_blank
+  end
 end
 
 describe RecentPhotos do
