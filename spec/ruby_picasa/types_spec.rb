@@ -193,6 +193,12 @@ describe Album do
     it 'should have a content' do
       @photo.content.should be_an_instance_of(PhotoUrl)
     end
+    
+    it 'should have a license' do
+      @photo.license.should be_an_instance_of(Photo::License)
+      @photo.license.id.should == 0
+      @photo.license.name.should == "All Rights Reserved"
+    end
 
     it 'should have 3 thumbnails' do
       @photo.thumbnails.length.should == 3

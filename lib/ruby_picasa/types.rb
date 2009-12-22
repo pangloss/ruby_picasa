@@ -286,8 +286,12 @@ module RubyPicasa
         [lat, lng]
       end
     end
+    
+    class License < Objectify::ElementParser
+      attributes :id, :name, :url
+    end
 
-    namespaces 'exif', 'georss', 'gml'
+    namespaces 'exif', 'georss', 'gml', 'gphoto'
 
     attributes :published,
       :summary,
@@ -316,6 +320,7 @@ module RubyPicasa
     
     has_one :point, RubyPicasa::Photo::Point, 'gml:Point'
     has_one :author, Objectify::Atom::Author, 'author'
+    has_one :license, RubyPicasa::Photo::License, 'gphoto:license'
 
   end
 
