@@ -81,6 +81,10 @@ describe User do
   it 'should have a user' do
     @user.user.should_not be_blank
   end
+  
+  it 'should have a nickname' do
+    @user.nickname.should_not be_blank
+  end
 end
 
 describe RecentPhotos do
