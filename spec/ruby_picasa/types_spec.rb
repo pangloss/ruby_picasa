@@ -270,6 +270,10 @@ describe Album do
                                       {:thumbsize => '32c'}).returns(nil)
       @photo.thumbnail('32c').should be_nil
     end
+    
+    it 'should have a timestamp' do
+      @photo.timestamp.should_not be_blank
+    end
   end
 end
 

@@ -328,6 +328,7 @@ module RubyPicasa
     attribute :user, 'gphoto:user'
     attribute :nickname, 'gphoto:nickname'
     attribute :location, 'gphoto:location'
+    attribute :timestamp, 'gphoto:timestamp'
 
     flatten 'georss:where'
     
