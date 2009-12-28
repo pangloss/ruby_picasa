@@ -15,7 +15,12 @@ module RubyPicasa
       end
     end
   end
-
+  
+  class Author < Objectify::Atom::Author
+    namespaces :gphoto
+    attribute :user, 'gphoto:user'
+    attribute :nickname, 'gphoto:nickname'
+  end
 
   # Note that in all defined classes I'm ignoring values I don't happen to need
   # or know about. Please do add support for the ones I've missed.  Be sure to
@@ -43,7 +48,7 @@ module RubyPicasa
     has_many :links, Objectify::Atom::Link, 'link'
     has_one :content, PhotoUrl, 'media:content'
     has_many :thumbnails, ThumbnailUrl, 'media:thumbnail'
-    has_one :author, Objectify::Atom::Author, 'author'
+    has_one :author, Author, 'author'
 
     # Return the link object with a matching rel attribute value. +rel+ can be
     # either a fully matching string or a regular expression.
@@ -324,7 +329,7 @@ module RubyPicasa
     flatten 'georss:where'
     
     has_one :point, RubyPicasa::Photo::Point, 'gml:Point'
-    has_one :author, Objectify::Atom::Author, 'author'
+    has_one :author, Author, 'author'
     has_one :license, RubyPicasa::Photo::License, 'gphoto:license'
 
   end
