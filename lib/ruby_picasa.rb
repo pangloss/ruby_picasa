@@ -6,7 +6,7 @@ require 'net/https'
 require File.join(File.dirname(__FILE__), 'ruby_picasa/types')
 
 module RubyPicasa
-  VERSION = '0.2.2'
+  VERSION = '0.2.3'
 
   class PicasaError < StandardError
   end
