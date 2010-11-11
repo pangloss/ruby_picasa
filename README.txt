@@ -45,9 +45,7 @@ Picasa through their API.
 
 == INSTALL:
 
-* gem install ruby-picasa
-* gem install pangloss-ruby-picasa --source http://gems.github.com
-
+* script/plugin install git://github.com/amuino/ruby_picasa.git
 == LICENSE:
 
 (The MIT License)

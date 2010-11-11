@@ -17,11 +17,11 @@ end
 
 # == Authorization
 #
-# RubyPicasa makes authorizing a Rails app easy. It is a two step process: 
+# RubyPicasa makes authorizing a Rails app easy. It is a two step process:
 #
 # First redirect the user to the authorization url, if the user authorizes your
 # application, Picasa will redirect the user back to the url you specify (in
-# this case authorize_picasa_url). 
+# this case authorize_picasa_url).
 #
 # Next, pass the Rails request object to the authorize_token method which will
 # make the api call to upgrade the token and if successful return an initialized
@@ -42,7 +42,7 @@ end
 #           flash[:notice] = 'Picasa authorization complete'
 #           redirect_to picasa_path
 #         rescue PicasaTokenError => e
-#           # 
+#           #
 #           @error = e.message
 #           render
 #         end
@@ -107,7 +107,7 @@ class Picasa
       path.to_s =~ %r{\Ahttps?://}
     end
 
-    # For more on possible options and their meanings, see: 
+    # For more on possible options and their meanings, see:
     # http://code.google.com/apis/picasaweb/reference.html
     #
     # The following values are valid for the thumbsize and imgmax query
@@ -122,7 +122,7 @@ class Picasa
     # The following values are valid for the thumbsize and imgmax query
     # parameters and are embeddable on a webpage. These images are available as
     # only uncropped(u) sizes by appending u to the size or just passing the
-    # size value without appending anything. 
+    # size value without appending anything.
     #
     # 200, 288, 320, 400, 512, 576, 640, 720, 800
     #
@@ -132,7 +132,7 @@ class Picasa
     # (no u is appended to the size).
     #
     # 912, 1024, 1152, 1280, 1440, 1600
-    # 
+    #
     def path(args = {})
       path, options = parse_url(args)
       if path.nil?
@@ -169,7 +169,7 @@ class Picasa
     # optional query string.
     def parse_url(args)
       url = args[:url]
-      url ||= args[:user_id] if is_url?(args[:user_id]) 
+      url ||= args[:user_id] if is_url?(args[:user_id])
       url ||= args[:album_id] if is_url?(args[:album_id])
       if url
         uri = URI.parse(url)
@@ -330,16 +330,19 @@ class Picasa
       # it's impossible to match any elements in the root xmlns namespace.
       # Matching just on attributes works though.
       feed, entry = xml.search('//*[@term][@scheme]', xml.namespaces)
+      feed_self, entry_self = xml.search('//*[@rel="self"][@type="application/atom+xml"]', xml.namespaces)
       feed_scheme = feed['term'] if feed
       entry_scheme = entry['term'] if entry
-      [xml, feed_scheme, entry_scheme]
+      feed_href = feed_self['href']  if feed_self
+      entry_href = entry_self['href'] if entry_self
+      [xml, feed_scheme, entry_scheme, feed_href, entry_href]
     end
   end
 
   # Initialize the correct RubyPicasa object depending on the type of feed and
   # entries in the document.
   def class_from_xml(xml)
-    xml, feed_scheme, entry_scheme = xml_data(xml)
+    xml, feed_scheme, entry_scheme, feed_href, entry_href = xml_data(xml)
     if xml
       r = case feed_scheme
       when /#user$/
@@ -348,18 +351,21 @@ class Picasa
           RubyPicasa::User.new(xml, self)
         when /#photo$/
           RubyPicasa::RecentPhotos.new(xml, self)
+        else
+          RubyPicasa::Search.new(xml, self)
         end
       when /#album$/
-        case entry_scheme
-        when nil, /#photo$/
-          RubyPicasa::Album.new(xml, self)
-        end
+        RubyPicasa::Album.new(xml, self)
       when /#photo$/
         case entry_scheme
         when /#photo$/
           RubyPicasa::Search.new(xml, self)
-        when nil
-          RubyPicasa::Photo.new(xml, self)
+        else
+          if feed_href && (feed_href.starts_with? 'http://picasaweb.google.com/data/feed/api/all')
+              RubyPicasa::Search.new(xml, self)
+          else
+            RubyPicasa::Photo.new(xml, self)
+          end
         end
       end
       if r
