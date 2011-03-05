@@ -199,7 +199,7 @@ class Picasa
   def authorize_token!
     http = Net::HTTP.new("www.google.com", 443)
     http.use_ssl = true
-    response = http.get('/accounts/accounts/AuthSubSessionToken', auth_header)
+    response = http.get('/accounts/AuthSubSessionToken', auth_header)
     token = response.body.scan(/Token=(.*)/).flatten.compact.first
     if token
       @token = token
