@@ -93,10 +93,12 @@ class Picasa
 
     # Takes a SubAuthToken and verify if it's still valid
     # see: https://developers.google.com/accounts/docs/AuthSub?hl=fr#AuthSubTokenInfo
-    def self.valid_token?(token)
+    def valid_token?(token)
+      @token = token
+
       http = Net::HTTP.new("www.google.com", 443)
       http.use_ssl = true
-      response = http.get('/accounts/AuthSubTokenInfo', { "Authorization" => %{AuthSub token="#{ token }"} })
+      response = http.get('/accounts/AuthSubTokenInfo', auth_header)
 
       response.status.to_s == "200"
     end
