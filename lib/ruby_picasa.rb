@@ -95,7 +95,7 @@ class Picasa
       http.use_ssl = true
       response = http.get('/accounts/AuthSubTokenInfo', { "Authorization" => %{AuthSub token="#{ token }"} })
 
-      response.status == 200
+      response.status.to_s == "200"
     end
 
     # The url to make requests to without the protocol or path.
