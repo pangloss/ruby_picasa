@@ -54,6 +54,7 @@ class Picasa
     # to access their Picasa account. The token_from_request and
     # authorize_request methods can be used to handle the resulting redirect
     # from Picasa.
+
     def authorization_url(return_to_url, request_session = true, secure = false, authsub_url = nil)
       session = request_session ? '1' : '0'
       secure = secure ? '1' : '0'
@@ -85,6 +86,16 @@ class Picasa
       p = Picasa.new(token_from_request(request))
       p.authorize_token!
       p
+    end
+
+    # Takes a SubAuthToken and verify if it's still valid
+    # see: https://developers.google.com/accounts/docs/AuthSub?hl=fr#AuthSubTokenInfo
+    def self.valid_token?(token)
+      http = Net::HTTP.new("www.google.com", 443)
+      http.use_ssl = true
+      response = http.get('/accounts/AuthSubTokenInfo', { "Authorization" => %{AuthSub token="#{ token }"} })
+
+      response.status == 200
     end
 
     # The url to make requests to without the protocol or path.
