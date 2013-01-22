@@ -11,6 +11,9 @@ module RubyPicasa
 
   class PicasaTokenError < PicasaError
   end
+
+  class PicasaTokenRevokedError < PicasaError
+  end
 end
 
 # == Authorization
