@@ -200,12 +200,12 @@ class Picasa
 
   # Takes a SubAuthToken and verify if it's still valid
   # see: https://developers.google.com/accounts/docs/AuthSub?hl=fr#AuthSubTokenInfo
-  def check_token!
+  def valid_token?
     http = Net::HTTP.new("www.google.com", 443)
     http.use_ssl = true
     response = http.get('/accounts/AuthSubTokenInfo', auth_header)
 
-    response.status.to_s == "200"
+    response.code.to_s == "200"
   end
 
   # Attempt to upgrade the current AuthSub token to a permanent one. This only
