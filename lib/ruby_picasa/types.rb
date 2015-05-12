@@ -15,7 +15,7 @@ module RubyPicasa
       end
     end
   end
-  
+
   class Author < Objectify::Atom::Author
     namespaces :gphoto
     attribute :user, 'gphoto:user'
@@ -32,7 +32,7 @@ module RubyPicasa
   #   attribute :id, 'gphoto:id'
   #   attribute :feed_id, 'id'
   #   attributes :updated, :title
-  #   
+  #
   #   has_many :links, Objectify::Atom::Link, 'link'
   #   has_one :content, PhotoUrl, 'media:content'
   #   has_many :thumbnails, ThumbnailUrl, 'media:thumbnail'
@@ -96,7 +96,7 @@ module RubyPicasa
     #
     # The rest of the image sizes should be specified by the desired width
     # alone. Widths up to 800px may be embedded on a webpage:
-    # 
+    #
     #   embeddable:     200, 288, 320, 400, 512, 576, 640, 720, 800
     #   not embeddable: 912, 1024, 1152, 1280, 1440, 1600
     #
@@ -105,7 +105,7 @@ module RubyPicasa
     # the rails image_tag helper as follows:
     #
     #   image_tag(*image.url('72c', { :class => 'thumb' }))
-    #   
+    #
     # which results in:
     #
     #   <img href="..." class="thumb" width="72" height="72">

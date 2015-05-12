@@ -54,11 +54,11 @@ end
 #
 class Picasa
   class << self
+    # TODO: migrate to OAuth2
     # The user must be redirected to this address to authorize the application
     # to access their Picasa account. The token_from_request and
     # authorize_request methods can be used to handle the resulting redirect
     # from Picasa.
-
     def authorization_url(return_to_url, request_session = true, secure = false, authsub_url = nil)
       session = request_session ? '1' : '0'
       secure = secure ? '1' : '0'
@@ -67,6 +67,7 @@ class Picasa
       "#{ url }?scope=http%3A%2F%2F#{ host }%2Fdata%2F&session=#{ session }&secure=#{ secure }&next=#{ return_to_url }"
     end
 
+    # TODO: migrate to OAuth2
     # Takes a Rails request object and extracts the token from it. This would
     # happen in the action that is pointed to by the return_to_url argument
     # when the authorization_url is created.
@@ -78,10 +79,12 @@ class Picasa
       end
     end
 
+    # TODO: migrate to OAuth2
     def token_in_request?(request)
       request.parameters['token']
     end
 
+    # TODO: migrate to OAuth2
     # Takes a Rails request object as in token_from_request, then makes the
     # token authorization request to produce the permanent token. This will
     # only work if request_session was true when you created the
@@ -191,7 +194,7 @@ class Picasa
     end
   end
 
-  # The AuthSub token currently in use.
+  # The Signet::OAuth2::Client token currently in use.
   attr_reader :token
 
   def initialize(token)
@@ -199,6 +202,7 @@ class Picasa
     @request_cache = {}
   end
 
+  # TODO: migrate to OAuth2
   # Takes a SubAuthToken and verify if it's still valid
   # see: https://developers.google.com/accounts/docs/AuthSub?hl=fr#AuthSubTokenInfo
   def valid_token?
@@ -209,6 +213,7 @@ class Picasa
     response.code.to_s == "200"
   end
 
+  # TODO: migrate to OAuth2
   # Attempt to upgrade the current AuthSub token to a permanent one. This only
   # works if the Picasa session is initialized with a single use token.
   def authorize_token!
