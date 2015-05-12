@@ -374,7 +374,7 @@ class Picasa
         when /#photo$/
           RubyPicasa::Search.new(xml, self)
         else
-          if feed_href && (feed_href.starts_with? 'http://picasaweb.google.com/data/feed/api/all')
+          if feed_href && (feed_href.start_with? 'http://picasaweb.google.com/data/feed/api/all')
               RubyPicasa::Search.new(xml, self)
           else
             RubyPicasa::Photo.new(xml, self)

@@ -283,7 +283,7 @@ describe Search do
     @xml = open_file('search.atom').read
   end
 
-  before do
+  before(:each) do
     @no_author = true
     @parent = mock('parent')
     @object = @search = Search.new(@xml, @parent)
@@ -312,14 +312,14 @@ end
 
 describe "Class from XML" do
   it 'should parse result without category cointaining photos' do
-    @search = @object = Picasa.new(nil).class_from_xml(open_file('search-without-category.xml'))
+    @search = @object = Picasa.new(nil).send(:class_from_xml, open_file('search-without-category.xml'))
     @search.should be_an_instance_of(Search)
     @search.entries.size == 1
     @search.entries.first.should be_an_instance_of Photo
   end
 
   it 'should parse user photo search without photos' do
-    @search = @object = Picasa.new(nil).class_from_xml(open_file('user-without-photos.xml'))
+    @search = @object = Picasa.new(nil).send(:class_from_xml, open_file('user-without-photos.xml'))
     @search.entries.should be_empty
   end
 end
