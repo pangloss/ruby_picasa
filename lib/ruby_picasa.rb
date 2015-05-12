@@ -107,7 +107,7 @@ class Picasa
     # identifier url. This is not intended to be a general purpose method as the
     # test is just a check for the http/https protocol prefix.
     def is_url?(path)
-      path.to_s =~ %r{\Ahttps?://}
+      (path.to_s =~ %r{\Ahttps?://}) != nil
     end
 
     # For more on possible options and their meanings, see:
