@@ -1,3 +1,4 @@
+require 'active_support/inflector'
 require 'objectify_xml'
 require 'objectify_xml/atom'
 require 'cgi'

@@ -2,12 +2,11 @@
 
 require 'rubygems'
 require './lib/ruby_picasa.rb'
-require 'spec/rake/spectask'
+require 'rspec/core/rake_task'
 
 desc "Run all specifications"
-Spec::Rake::SpecTask.new(:spec) do |t|
-  t.libs = ['lib', 'spec']
-  t.spec_opts = ['--colour', '--format', 'specdoc']
+RSpec::Core::RakeTask.new(:spec) do |t|
+  t.rspec_opts = ['--colour', '--format', 'documentation']
 end
 
 task :default => [:spec]

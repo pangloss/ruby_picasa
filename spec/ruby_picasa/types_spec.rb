@@ -2,7 +2,7 @@ require File.join(File.dirname(__FILE__), '../spec_helper')
 
 include RubyPicasa
 
-describe 'a RubyPicasa document', :shared => true do
+shared_examples_for 'a RubyPicasa document' do
   it 'should have a feed_id' do
     @object.feed_id.should_not be_nil
   end
@@ -59,15 +59,14 @@ describe 'a RubyPicasa document', :shared => true do
   end
 end
 
-
 describe User do
   it_should_behave_like 'a RubyPicasa document'
 
-  before :all do
+  before(:all) do
     @xml = open_file('user.atom').read
   end
 
-  before do
+  before(:each) do
     @parent = mock('parent')
     @object = @user = User.new(@xml, @parent)
     @user.session = mock('session')
@@ -77,13 +76,13 @@ describe User do
     @user.albums.length.should == 1
     @user.albums.first.should be_an_instance_of(Album)
   end
-  
+
   it 'should have a user' do
-    @user.user.should_not be_blank
+    @user.user.should_not be_empty
   end
-  
+
   it 'should have a nickname' do
-    @user.nickname.should_not be_blank
+    @user.nickname.should_not be_empty
   end
 end
 
@@ -146,7 +145,7 @@ describe Album do
   describe 'photos' do
     it 'should use entries if available' do
       @album.expects(:session).never
-      @album.photos.should == @album.entries
+      @album.photos.should eq(@album.entries)
     end
 
     it 'should request photos if needed' do
@@ -173,11 +172,11 @@ describe Album do
   end
 
   it 'should be public' do
-    @album.public?.should be_true
+    @album.public?.should be(true)
   end
 
   it 'should not be private' do
-    @album.private?.should be_false
+    @album.private?.should be(false)
   end
 
   describe 'first Photo' do
@@ -197,7 +196,7 @@ describe Album do
     it 'should have a content' do
       @photo.content.should be_an_instance_of(PhotoUrl)
     end
-    
+
     it 'should have a license' do
       @photo.license.should be_an_instance_of(Photo::License)
       @photo.license.id.should == 0
@@ -270,9 +269,9 @@ describe Album do
                                       {:thumbsize => '32c'}).returns(nil)
       @photo.thumbnail('32c').should be_nil
     end
-    
+
     it 'should have a timestamp' do
-      @photo.timestamp.should_not be_blank
+      @photo.timestamp.should_not be_nil
     end
   end
 end
@@ -355,7 +354,7 @@ describe "Search by bounding box" do
     @search.entries.first.point.lat.should_not eql(0)
     @search.entries.first.point.lng.should be_an_instance_of Float
     @search.entries.first.point.lng.should_not eql(0)
-    @search.entries.first.location.should_not be_blank
+    @search.entries.first.location.should_not be_empty
   end
 end
 

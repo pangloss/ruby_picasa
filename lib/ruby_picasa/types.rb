@@ -226,10 +226,10 @@ module RubyPicasa
 
     # The current page of photos in the album.
     def photos(options = {})
-      if entries.blank? and !@photos_requested
+      if entries.empty? and !@photos_requested
         @photos_requested = true
         if session and data = feed
-          self.entries = data.entries 
+          self.entries = data.entries
         else
           []
         end
@@ -324,14 +324,14 @@ module RubyPicasa
     attribute :exif_make, 'exif:make'
     attribute :exif_model, 'exif:model'
     attribute :exif_time, 'exif:time'
-    
+
     attribute :user, 'gphoto:user'
     attribute :nickname, 'gphoto:nickname'
     attribute :location, 'gphoto:location'
     attribute :timestamp, 'gphoto:timestamp'
 
     flatten 'georss:where'
-    
+
     has_one :point, RubyPicasa::Photo::Point, 'gml:Point'
     has_one :author, Author, 'author'
     has_one :license, RubyPicasa::Photo::License, 'gphoto:license'
