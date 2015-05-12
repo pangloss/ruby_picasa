@@ -46,8 +46,8 @@ Gem::Specification.new do |s|
   s.summary = %q{Provides a super easy to use object layer for authenticating and accessing Picasa through their API.}
   s.test_files = [
     "spec/ruby_picasa/types_spec.rb",
-     "spec/ruby_picasa_spec.rb",
-     "spec/spec_helper.rb"
+    "spec/ruby_picasa_spec.rb",
+    "spec/spec_helper.rb"
   ]
 
   if s.respond_to? :specification_version then
@@ -56,11 +56,17 @@ Gem::Specification.new do |s|
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
       s.add_runtime_dependency(%q<objectify-xml>, [">= 0.2.3"])
+      s.add_runtime_dependency(%q<signet>, [">= 0.6.0"])
+      s.add_runtime_dependency(%q<activesupport>, [">= 3.2"])
     else
       s.add_dependency(%q<objectify-xml>, [">= 0.2.3"])
+      s.add_dependency(%q<signet>, [">= 0.6.0"])
+      s.add_dependency(%q<activesupport>, [">= 3.2"])
     end
   else
     s.add_dependency(%q<objectify-xml>, [">= 0.2.3"])
+    s.add_dependency(%q<signet>, [">= 0.6.0"])
+    s.add_dependency(%q<activesupport>, [">= 3.2"])
   end
 end
 
