@@ -58,15 +58,18 @@ Gem::Specification.new do |s|
       s.add_runtime_dependency(%q<objectify-xml>, [">= 0.2.3"])
       s.add_runtime_dependency(%q<signet>, [">= 0.6.0"])
       s.add_runtime_dependency(%q<activesupport>, [">= 3.2"])
+      s.add_runtime_dependency(%q<google-api-client>, [">= 0.8.2"])
     else
       s.add_dependency(%q<objectify-xml>, [">= 0.2.3"])
       s.add_dependency(%q<signet>, [">= 0.6.0"])
       s.add_dependency(%q<activesupport>, [">= 3.2"])
+      s.add_dependency(%q<google-api-client>, [">= 0.8.2"])
     end
   else
     s.add_dependency(%q<objectify-xml>, [">= 0.2.3"])
     s.add_dependency(%q<signet>, [">= 0.6.0"])
     s.add_dependency(%q<activesupport>, [">= 3.2"])
+    s.add_dependency(%q<google-api-client>, [">= 0.8.2"])
   end
 end
 

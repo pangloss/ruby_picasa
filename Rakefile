@@ -30,6 +30,7 @@ begin
     gem.add_dependency "objectify-xml", ">=0.2.3"
     gem.add_dependency "signet", ">= 0.6.0"
     gem.add_dependency "activesupport", ">= 3.2"
+    gem.add_dependency "google-api-client", ">= 0.8.2"
 
     gem.files.include %w(README.txt History.txt lib/**/** spec/**/**)
   end

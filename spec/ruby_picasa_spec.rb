@@ -4,48 +4,52 @@ class Picasa
   class << self
     public :parse_url
   end
-  public :auth_header, :with_cache, :class_from_xml, :xml_data
+  public :add_auth_headers, :with_cache, :class_from_xml, :xml_data
 end
 
 describe 'Picasa class methods' do
+  let(:client_id)           { 'c_id' }
+  let(:redirect_uri)        { 'https://localhost.com/redirect_uri' }
+
+  # def authorization_url(client_id, redirect_uri, application_name, application_version)
   it 'should generate an authorization_url' do
-    return_url = 'http://example.com/example?example=ex'
-    url = Picasa.authorization_url(return_url)
-    url.should include(CGI.escape(return_url))
-    url.should match(/session=1/)
+    url = Picasa.authorization_url(client_id, redirect_uri)
+    expect(url).to include(redirect_uri)
+    expect(url).to include(client_id)
+    expect(url).to include(Picasa::OAUTH_SCOPE)
   end
 
-  describe 'token_in_request?' do
+  describe 'code_in_request?' do
     it 'should be nil if no token' do
       request = mock('request', :parameters => { })
-      Picasa.token_in_request?(request).should be_nil
+      Picasa.code_in_request?(request).should be_nil
     end
 
     it 'should not be nil if there is a token' do
-      request = mock('request', :parameters => { 'token' => 'abc' })
-      Picasa.token_in_request?(request).should_not be_nil
+      request = mock('request', :parameters => { 'code' => 'abc' })
+      Picasa.code_in_request?(request).should_not be_nil
     end
   end
 
-  describe 'token_from_request' do
+  describe 'code_from_request' do
     it 'should pluck the token from the request' do
-      request = mock('request', :parameters => { 'token' => 'abc' })
-      Picasa.token_from_request(request).should == 'abc'
+      request = mock('request', :parameters => { 'code' => 'abc' })
+      Picasa.code_from_request(request).should == 'abc'
     end
     it 'should raise if no token is present' do
       request = mock('request', :parameters => { })
       lambda do
-        Picasa.token_from_request(request)
+        Picasa.code_from_request(request)
       end.should raise_error(RubyPicasa::PicasaTokenError)
     end
   end
 
   it 'should authorize a request' do
-    Picasa.expects(:token_from_request).with(:request).returns('abc')
+    Picasa.expects(:code_from_request).with(:request).returns('abc')
     picasa = mock('picasa')
-    Picasa.expects(:new).with('abc').returns(picasa)
+    Picasa.expects(:new).with(instance_of(Signet::OAuth2::Client)).returns(picasa)
     picasa.expects(:authorize_token!).with()
-    Picasa.authorize_request(:request).should == picasa
+    Picasa.authorize_request(:client_id, :client_secret, redirect_uri, :request).should == picasa
   end
 
   it 'should recognize absolute urls' do
@@ -134,7 +138,6 @@ end
 
 describe Picasa do
   def body(text)
-    #open_file('user_feed.atom').read
     @response.stubs(:body).returns(text)
   end
 
@@ -142,13 +145,14 @@ describe Picasa do
     @response = mock('response')
     @response.stubs(:code).returns '200'
     @http = mock('http')
-    @http.stubs(:get).returns @response
+    @http.stubs(:request).returns @response
+    @http.stubs(:use_ssl=)
     Net::HTTP.stubs(:new).returns(@http)
-    @p = Picasa.new 'token'
+    @p = Picasa.new Signet::OAuth2::Client.new(access_token: 'access_token')
   end
 
   it 'should initialize' do
-    @p.token.should == 'token'
+    expect(@p.oauth2_signet).to be_an_instance_of(Signet::OAuth2::Client)
   end
 
   describe 'authorize_token!' do
@@ -259,12 +263,16 @@ describe Picasa do
 
   describe 'auth_header' do
     it 'should build an AuthSub header' do
-      @p.auth_header.should == { "Authorization" => %{AuthSub token="token"} }
+      with_headers = @p.add_auth_headers({})
+      expect(with_headers['Authorization']).to eq('Bearer access_token')
+      expect(with_headers['GData-Version']).to eq('2')
     end
 
     it 'should do nothing' do
       p = Picasa.new nil
-      p.auth_header.should == { }
+      with_headers = p.add_auth_headers({})
+      expect(with_headers['Authorization']).to eq(nil)
+      expect(with_headers['GData-Version']).to eq('2')
     end
   end
 

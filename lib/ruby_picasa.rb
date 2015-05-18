@@ -1,9 +1,13 @@
 require 'active_support/inflector'
+require 'google/api_client'
 require 'objectify_xml'
 require 'objectify_xml/atom'
 require 'cgi'
 require 'net/http'
 require 'net/https'
+require 'signet/oauth_2'
+require 'signet/oauth_2/client'
+
 require File.join(File.dirname(__FILE__), 'ruby_picasa/types')
 
 module RubyPicasa
@@ -19,7 +23,7 @@ end
 
 # == Authorization
 #
-# RubyPicasa makes authorizing a Rails app easy. It is a two step process:
+# RubyPicasa makes authorizing a Rails app easy. It is an Oauth2 classic process
 #
 # First redirect the user to the authorization url, if the user authorizes your
 # application, Picasa will redirect the user back to the url you specify (in
@@ -36,7 +40,7 @@ end
 #     end
 #
 #     def authorize
-#       if Picasa.token_in_request?(request)
+#       if Picasa.code_in_request?(request)
 #         begin
 #           picasa = Picasa.authorize_request(request)
 #           current_user.picasa_token = picasa.token
@@ -53,51 +57,64 @@ end
 #   end
 #
 class Picasa
+  OAUTH_SCOPE = 'https://picasaweb.google.com/data/'
+
   class << self
-    # TODO: migrate to OAuth2
-    # The user must be redirected to this address to authorize the application
-    # to access their Picasa account. The token_from_request and
-    # authorize_request methods can be used to handle the resulting redirect
-    # from Picasa.
-    def authorization_url(return_to_url, request_session = true, secure = false, authsub_url = nil)
-      session = request_session ? '1' : '0'
-      secure = secure ? '1' : '0'
-      return_to_url = CGI.escape(return_to_url)
-      url = authsub_url || 'http://www.google.com/accounts/AuthSubRequest'
-      "#{ url }?scope=http%3A%2F%2F#{ host }%2Fdata%2F&session=#{ session }&secure=#{ secure }&next=#{ return_to_url }"
+    # Use Google::APIClient to setup a valid Signet::OAuth2::Client
+    def build_google_oauth2_signet(client_id)
+      s = Google::APIClient.new(application_name: 'sharypic', application_version: '1.0.0').authorization
+
+      s.scope = OAUTH_SCOPE
+      s.client_id = client_id
+      s
     end
 
-    # TODO: migrate to OAuth2
+    # The user must be redirected to this address to authorize the application
+    # to access their Picasa account. The code_from_request and
+    # authorize_request methods can be used to handle the resulting redirect
+    # from Picasa.
+    def authorization_url(client_id, redirect_uri)
+      s = build_google_oauth2_signet(client_id)
+      s.redirect_uri = redirect_uri
+
+      s.authorization_uri({
+       approval_prompt: :force,
+       access_type: :offline,
+      }).to_s
+    end
+
     # Takes a Rails request object and extracts the token from it. This would
-    # happen in the action that is pointed to by the return_to_url argument
+    # happen in the action that is pointed to by the redirect_uri argument
     # when the authorization_url is created.
-    def token_from_request(request)
-      if token = request.parameters['token']
-        return token
+    def code_from_request(request)
+      if code = request.parameters['code']
+        return code
       else
-        raise RubyPicasa::PicasaTokenError, 'No Picasa authorization token was found.'
+        raise RubyPicasa::PicasaTokenError, 'No Picasa authorization code was found.'
       end
     end
 
-    # TODO: migrate to OAuth2
-    def token_in_request?(request)
-      request.parameters['token']
+    def code_in_request?(request)
+      request.parameters['code']
     end
 
-    # TODO: migrate to OAuth2
-    # Takes a Rails request object as in token_from_request, then makes the
+    # Takes a Rails request object as in code_from_request, then makes the
     # token authorization request to produce the permanent token. This will
     # only work if request_session was true when you created the
     # authorization_url.
-    def authorize_request(request)
-      p = Picasa.new(token_from_request(request))
+    def authorize_request(client_id, client_secret, redirect_uri, request)
+      s = build_google_oauth2_signet(client_id)
+      s.redirect_uri = redirect_uri
+      s.client_secret = client_secret
+      s.code = code_from_request(request)
+      p = Picasa.new(s)
       p.authorize_token!
       p
     end
 
     # The url to make requests to without the protocol or path.
     def host
-      @host ||= 'picasaweb.google.com'
+      @host ||= 'https://picasaweb.google.com'
     end
 
     # In the unlikely event that you need to access this api on a different url,
@@ -195,38 +212,24 @@ class Picasa
   end
 
   # The Signet::OAuth2::Client token currently in use.
-  attr_reader :token
+  attr_reader :oauth2_signet
 
-  def initialize(token)
-    @token = token
+  def initialize(signet)
+    @oauth2_signet = signet
     @request_cache = {}
   end
 
-  # TODO: migrate to OAuth2
-  # Takes a SubAuthToken and verify if it's still valid
-  # see: https://developers.google.com/accounts/docs/AuthSub?hl=fr#AuthSubTokenInfo
-  def valid_token?
-    http = Net::HTTP.new("www.google.com", 443)
-    http.use_ssl = true
-    response = http.get('/accounts/AuthSubTokenInfo', auth_header)
-
-    response.code.to_s == "200"
+  # Takes a OAuth2 signeet and verify if it's still valid
+  def valid_oauth_access_token?
+    @oauth2_signet.expired?
   end
 
-  # TODO: migrate to OAuth2
-  # Attempt to upgrade the current AuthSub token to a permanent one. This only
+  # Attempt to upgrade the current OAuth2 signet to a permanent one. This only
   # works if the Picasa session is initialized with a single use token.
   def authorize_token!
-    http = Net::HTTP.new("www.google.com", 443)
-    http.use_ssl = true
-    response = http.get('/accounts/AuthSubSessionToken', auth_header)
-    token = response.body.scan(/Token=(.*)/).flatten.compact.first
-    if token
-      @token = token
-    else
-      raise RubyPicasa::PicasaTokenError, 'The request to upgrade to a session token failed.'
-    end
-    @token
+    oauth2_signet.fetch_access_token!
+  rescue Signet::AuthorizationError => e
+    raise RubyPicasa::PicasaTokenError, 'The request to upgrade to a session token failed.'
   end
 
   # Retrieve a RubyPicasa::User record including all user albums.
@@ -281,9 +284,16 @@ class Picasa
   # Returns the raw xml from Picasa. See the Picasa.path method for valid
   # options.
   def xml(options = {})
-    http = Net::HTTP.new(Picasa.host, 80)
+    host = Picasa.host
     path = Picasa.path(options)
-    response = http.get(path, auth_header)
+    url = URI("#{host}#{path}")
+
+    http = Net::HTTP.new(url.host, url.port)
+    http.use_ssl = true
+
+    req = add_auth_headers(Net::HTTP::Get.new url.path)
+
+    response = http.request(req)
     if response.code =~ /20[01]/
       response.body
     end
@@ -313,13 +323,11 @@ class Picasa
     end
   end
 
-  # Returns the header data needed to make AuthSub requests.
-  def auth_header
-    if token
-      { "Authorization" => %{AuthSub token="#{ token }"} }
-    else
-      {}
-    end
+  # Returns the header data needed to make Google OAuth2 requests.
+  def add_auth_headers(req)
+    req['GData-Version'] = '2'
+    req['Authorization'] = "Bearer #{oauth2_signet.access_token}" if !@oauth2_signet.nil? && !  oauth2_signet.access_token.nil?
+    req
   end
 
   # Caches the raw xml returned from the API. Keyed on request url.
