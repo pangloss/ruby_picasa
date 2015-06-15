@@ -16,6 +16,11 @@ module RubyPicasa
     end
   end
 
+  class Author < Objectify::Atom::Author
+    namespaces :gphoto
+    attribute :user, 'gphoto:user'
+    attribute :nickname, 'gphoto:nickname'
+  end
 
   # Note that in all defined classes I'm ignoring values I don't happen to need
   # or know about. Please do add support for the ones I've missed.  Be sure to
@@ -27,7 +32,7 @@ module RubyPicasa
   #   attribute :id, 'gphoto:id'
   #   attribute :feed_id, 'id'
   #   attributes :updated, :title
-  #   
+  #
   #   has_many :links, Objectify::Atom::Link, 'link'
   #   has_one :content, PhotoUrl, 'media:content'
   #   has_many :thumbnails, ThumbnailUrl, 'media:thumbnail'
@@ -43,7 +48,7 @@ module RubyPicasa
     has_many :links, Objectify::Atom::Link, 'link'
     has_one :content, PhotoUrl, 'media:content'
     has_many :thumbnails, ThumbnailUrl, 'media:thumbnail'
-    has_one :author, Objectify::Atom::Author, 'author'
+    has_one :author, Author, 'author'
 
     # Return the link object with a matching rel attribute value. +rel+ can be
     # either a fully matching string or a regular expression.
@@ -91,7 +96,7 @@ module RubyPicasa
     #
     # The rest of the image sizes should be specified by the desired width
     # alone. Widths up to 800px may be embedded on a webpage:
-    # 
+    #
     #   embeddable:     200, 288, 320, 400, 512, 576, 640, 720, 800
     #   not embeddable: 912, 1024, 1152, 1280, 1440, 1600
     #
@@ -100,7 +105,7 @@ module RubyPicasa
     # the rails image_tag helper as follows:
     #
     #   image_tag(*image.url('72c', { :class => 'thumb' }))
-    #   
+    #
     # which results in:
     #
     #   <img href="..." class="thumb" width="72" height="72">
@@ -149,9 +154,12 @@ module RubyPicasa
   #   attributes :total_results, # represents total number of albums
   #     :start_index,
   #     :items_per_page,
-  #     :thumbnail
+  #     :thumbnail,
+  #     :user # userID
   #   has_many :entries, :Album, 'entry'
   class User < Base
+    attribute :user, 'gphoto:user'
+    attribute :nickname, 'gphoto:nickname'
     attributes :total_results, # represents total number of albums
       :start_index,
       :items_per_page,
@@ -200,8 +208,8 @@ module RubyPicasa
       :name,
       :access,
       :numphotos, # number of pictures in this album
-      :total_results, # number of pictures matching this 'search'
-      :start_index,
+    :total_results, # number of pictures matching this 'search'
+    :start_index,
       :items_per_page,
       :allow_downloads
     has_many :entries, :Photo, 'entry'
@@ -218,10 +226,10 @@ module RubyPicasa
 
     # The current page of photos in the album.
     def photos(options = {})
-      if entries.blank? and !@photos_requested
+      if entries.empty? and !@photos_requested
         @photos_requested = true
         if session and data = feed
-          self.entries = data.entries 
+          self.entries = data.entries
         else
           []
         end
@@ -238,7 +246,6 @@ module RubyPicasa
       super
     end
   end
-
 
   # Includes attributes and associations defined on Base, plus:
   #
@@ -264,13 +271,36 @@ module RubyPicasa
   #   attribute :exif_time, 'exif:time'
   #   has_one :author, Objectify::Atom::Author, 'author'
   class Photo < Base
-    CROPPED = %w[ 32c 48c 64c 72c 144c 160c ]
-    UNCROPPED = %w[ 32u 48u 64u 72u 144u 160u 32 48 64 72 144 160 ]
+    CROPPED = %w[ 32c 48c 64c 72c 75c 104c 144c 150c 160c ]
+    UNCROPPED = %w[
+      100 104 110 128 144 150 160 200 220 240 288 320 32 400 48 512 576 640 64 720 72 75 800 912 94 1024 1152 1280 1440 1600
+      100u 104u 110u 128u 144u 150u 160u 200u 220u 240u 288u 320u 32u 400u 48u 512u 576u 640u 64u 720u 72u 75u 800u 912u 94u 1024u 1152u 1280u 1440u 1600u
+    ]
     MEDIUM = %w[ 200 288 320 400 512 576 640 720 800 ]
     LARGE = %w[ 912 1024 1152 1280 1440 1600 ]
     VALID = CROPPED + UNCROPPED + MEDIUM + LARGE
 
-    namespace :exif
+    class Point < Objectify::DocumentParser
+      namespaces 'gml'
+      attribute :pos, 'gml:pos'
+      def lat
+        @lat ||= pos.split(" ").first.to_f
+      end
+
+      def lng
+        @lng ||= pos.split(" ").last.to_f
+      end
+
+      def coords
+        [lat, lng]
+      end
+    end
+
+    class License < Objectify::ElementParser
+      attributes :id, :name, :url
+    end
+
+    namespaces 'exif', 'georss', 'gml', 'gphoto'
 
     attributes :published,
       :summary,
@@ -295,8 +325,18 @@ module RubyPicasa
     attribute :exif_model, 'exif:model'
     attribute :exif_time, 'exif:time'
 
-    has_one :author, Objectify::Atom::Author, 'author'
+    attribute :user, 'gphoto:user'
+    attribute :nickname, 'gphoto:nickname'
+    attribute :location, 'gphoto:location'
+    attribute :timestamp, 'gphoto:timestamp'
+
+    flatten 'georss:where'
+
+    has_one :point, RubyPicasa::Photo::Point, 'gml:Point'
+    has_one :author, Author, 'author'
+    has_one :license, RubyPicasa::Photo::License, 'gphoto:license'
 
   end
+
 end
 
